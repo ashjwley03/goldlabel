@@ -8,7 +8,10 @@
     "scheme": "goldlabel",
     "ios": {
       "bundleIdentifier": "com.goldlabel.app",
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.goldlabel.app",
@@ -18,6 +21,11 @@
     },
     "plugins": [
       "expo-asset"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "6688f225-fb9e-4c25-b715-88abdfcf2733"
+      }
+    }
   }
 }

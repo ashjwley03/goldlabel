@@ -210,7 +210,7 @@ const styles = StyleSheet.create({
   cardDate: { fontSize: 17, color: 'rgba(27,48,34,0.75)', marginTop: 2 },
   cardRelative: { fontSize: 13, color: 'rgba(27,48,34,0.45)', marginTop: 2 },
   thumbnail: { width: 80, height: 80, backgroundColor: 'white', borderRadius: 16, borderWidth: 3, borderColor: 'rgba(27,48,34,0.15)', alignItems: 'center', justifyContent: 'center' },
-  thumbnailGrid: { flexDirection: 'row', flexWrap: 'wrap', padding: 4, width: 62, height: 62 },
+  thumbnailGrid: { flexDirection: 'row', flexWrap: 'wrap', width: 62, height: 62 },
   thumbCell: { width: 26, height: 26, borderRadius: 6, marginRight: 3, marginBottom: 3 },
   contactSection: { marginTop: 32, backgroundColor: 'rgba(255,255,255,0.5)', borderRadius: 20, padding: 20 },
   contactHeading: { fontSize: 11, fontWeight: '700', color: 'rgba(27,48,34,0.4)', textTransform: 'uppercase', letterSpacing: 2, marginBottom: 12 },
