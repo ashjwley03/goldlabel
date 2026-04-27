@@ -68,6 +68,21 @@ export default function ScannerScreen({ navigation }: any) {
     }
   };
 
+  const handlePickFromGallery = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission required', 'Gallery access is needed to pick a label image.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]) {
+      navigation.navigate('Processing', { imageUri: result.assets[0].uri });
+    }
+  };
+
   return (
     <View style={styles.container}>
       {/* Simulated camera background */}
@@ -127,6 +142,9 @@ export default function ScannerScreen({ navigation }: any) {
           activeOpacity={0.85}
         >
           <View style={[styles.shutterInner, { backgroundColor: scanning ? '#D37B5C' : '#1B3022' }]} />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={handlePickFromGallery} style={styles.galleryBtn} activeOpacity={0.7}>
+          <Text style={styles.galleryBtnText}>Pick from Gallery</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -232,4 +250,15 @@ const styles = StyleSheet.create({
   },
   shutterDisabled: { opacity: 0.6 },
   shutterInner: { width: 56, height: 56, borderRadius: 28 },
+  galleryBtn: {
+    marginTop: 20,
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 20,
+  },
+  galleryBtnText: {
+    color: 'white',
+    fontSize: 15,
+  },
 });

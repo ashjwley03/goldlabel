@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path, Circle } from 'react-native-svg';
-import { mockMedications } from '../data/mockData';
+import { LabelRecord, CategoryData } from '../types';
 import { MorningIcon, NoonIcon, NightIcon, PillIcon, FoodIcon, NoFoodIcon } from '../components/CustomIcons';
 
 function XIcon() {
@@ -22,12 +22,42 @@ function AlertIcon() {
   );
 }
 
+function parseTimingFromCategory(category: CategoryData) {
+  const slug = (category.selected_pictogram_id || '').toLowerCase();
+  const label = (category.suggested_options.find(
+    (o) => o.pictogram_id === category.selected_pictogram_id
+  )?.label || '').toLowerCase();
+  const text = slug + ' ' + label;
+  return {
+    morning: text.includes('morning'),
+    noon: text.includes('noon') || text.includes('afternoon') || text.includes('midday'),
+    night: text.includes('night') || text.includes('evening'),
+  };
+}
+
+function parseDosageFromCategory(category: CategoryData): { amount: number; unit: string } {
+  const slug = category.selected_pictogram_id || '';
+  const match = slug.match(/(\d+)/);
+  const amount = match ? parseInt(match[1], 10) : 1;
+  return { amount, unit: amount === 1 ? 'tablet' : 'tablets' };
+}
+
+function parseWithFoodFromCategory(category: CategoryData): boolean | null {
+  const slug = (category.selected_pictogram_id || '').toLowerCase();
+  const label = (category.suggested_options.find(
+    (o) => o.pictogram_id === category.selected_pictogram_id
+  )?.label || '').toLowerCase();
+  const text = slug + ' ' + label;
+  if (text.includes('with-food') || text.includes('with food')) return true;
+  if (text.includes('empty') || text.includes('without') || text.includes('no food')) return false;
+  return null;
+}
+
 export default function PictographViewScreen({ navigation, route }: any) {
   const insets = useSafeAreaInsets();
-  const { medicationId } = route.params || {};
-  const medication = mockMedications.find((m) => m.id === medicationId);
+  const { label } = route.params as { label?: LabelRecord } || {};
 
-  if (!medication) {
+  if (!label) {
     return (
       <View style={[styles.container, { paddingTop: insets.top, alignItems: 'center', justifyContent: 'center' }]}>
         <AlertIcon />
@@ -39,13 +69,28 @@ export default function PictographViewScreen({ navigation, route }: any) {
     );
   }
 
+  const cats = label.pictogram_categories;
+
+  const emptyCategory: CategoryData = { suggested_options: [], selected_pictogram_id: null };
+  const timeOfDay = cats?.time_of_day ?? emptyCategory;
+  const dosageCat = cats?.dosage ?? emptyCategory;
+  const specialInstructions = cats?.special_instructions ?? emptyCategory;
+
+  const timing = parseTimingFromCategory(timeOfDay);
+  const dosage = parseDosageFromCategory(dosageCat);
+  const withFood = parseWithFoodFromCategory(specialInstructions);
+
+  const specialLabel = specialInstructions.suggested_options.find(
+    (o) => o.pictogram_id === specialInstructions.selected_pictogram_id
+  )?.label || specialInstructions.selected_pictogram_id || '';
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerRow}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.medName}>{medication.name}</Text>
+            <Text style={styles.medName}>{label.medication_name}</Text>
             <Text style={styles.headerSub}>Your Instructions</Text>
           </View>
           <TouchableOpacity onPress={() => navigation.navigate('Dashboard')} style={styles.closeBtn} activeOpacity={0.7}>
@@ -65,8 +110,8 @@ export default function PictographViewScreen({ navigation, route }: any) {
           <View style={styles.heroInner}>
             <PillIcon size={140} />
             <View style={{ alignItems: 'center', marginTop: 24 }}>
-              <Text style={styles.dosageNumber}>{medication.dosage.amount}</Text>
-              <Text style={styles.dosageUnit}>{medication.dosage.unit.toUpperCase()}</Text>
+              <Text style={styles.dosageNumber}>{dosage.amount}</Text>
+              <Text style={styles.dosageUnit}>{dosage.unit.toUpperCase()}</Text>
             </View>
           </View>
         </View>
@@ -76,34 +121,42 @@ export default function PictographViewScreen({ navigation, route }: any) {
           <Text style={styles.cardSectionLabel}>When to Take</Text>
           <View style={styles.timingGrid}>
             {[
-              { key: 'morning', label: 'Morning', Icon: MorningIcon, active: medication.timing.morning },
-              { key: 'noon', label: 'Noon', Icon: NoonIcon, active: medication.timing.noon },
-              { key: 'night', label: 'Night', Icon: NightIcon, active: medication.timing.night },
-            ].map(({ key, label, Icon, active }) => (
+              { key: 'morning', label: 'Morning', Icon: MorningIcon, active: timing.morning },
+              { key: 'noon', label: 'Noon', Icon: NoonIcon, active: timing.noon },
+              { key: 'night', label: 'Night', Icon: NightIcon, active: timing.night },
+            ].map(({ key, label: timeLabel, Icon, active }) => (
               <View key={key} style={[styles.timingItem, !active && styles.timingItemDimmed]}>
                 <Icon size={100} />
-                <Text style={styles.timingLabel}>{label}</Text>
+                <Text style={styles.timingLabel}>{timeLabel}</Text>
               </View>
             ))}
           </View>
         </View>
 
         {/* Food card */}
-        {medication.withFood !== null && (
-          <View style={[styles.foodCard, medication.withFood ? styles.foodCardWith : styles.foodCardWithout]}>
+        {withFood !== null && (
+          <View style={[styles.foodCard, withFood ? styles.foodCardWith : styles.foodCardWithout]}>
             <Text style={styles.cardSectionLabel}>
-              {medication.withFood ? 'Take With Food' : 'Take on Empty Stomach'}
+              {withFood ? 'Take With Food' : 'Take on Empty Stomach'}
             </Text>
             <View style={{ alignItems: 'center' }}>
-              {medication.withFood ? <FoodIcon size={120} /> : <NoFoodIcon size={120} />}
+              {withFood ? <FoodIcon size={120} /> : <NoFoodIcon size={120} />}
             </View>
           </View>
         )}
 
-        {/* Instructions card */}
+        {/* Special instructions */}
+        {specialLabel && withFood === null && (
+          <View style={styles.instructionsCard}>
+            <Text style={styles.cardSectionLabel}>Special Instructions</Text>
+            <Text style={styles.instructionsText}>{specialLabel}</Text>
+          </View>
+        )}
+
+        {/* Raw text */}
         <View style={styles.instructionsCard}>
-          <Text style={styles.cardSectionLabel}>Complete Instructions</Text>
-          <Text style={styles.instructionsText}>{medication.instructions}</Text>
+          <Text style={styles.cardSectionLabel}>Label Text</Text>
+          <Text style={styles.instructionsText}>{label.raw_text}</Text>
         </View>
 
         {/* Actions */}
@@ -142,7 +195,7 @@ const styles = StyleSheet.create({
   foodCardWith: { backgroundColor: 'rgba(45,95,63,0.1)', borderWidth: 4, borderColor: 'rgba(45,95,63,0.3)' },
   foodCardWithout: { backgroundColor: 'rgba(211,123,92,0.1)', borderWidth: 4, borderColor: 'rgba(211,123,92,0.3)' },
   instructionsCard: { backgroundColor: 'rgba(255,255,255,0.5)', borderRadius: 32, padding: 40, shadowColor: '#1B3022', shadowOpacity: 0.08, shadowRadius: 8, elevation: 2 },
-  instructionsText: { fontSize: 22, color: '#1B3022', lineHeight: 34 },
+  instructionsText: { fontSize: 20, color: '#1B3022', lineHeight: 30 },
   actions: { gap: 16 },
   scanAnotherBtn: { backgroundColor: '#1B3022', borderRadius: 28, paddingVertical: 28, alignItems: 'center', minHeight: 80, shadowColor: '#1B3022', shadowOpacity: 0.3, shadowRadius: 12, elevation: 4 },
   scanAnotherText: { color: 'white', fontSize: 28, fontWeight: '700', fontFamily: 'Georgia' },

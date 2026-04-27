@@ -9,9 +9,13 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
+import { supabase } from '../utils/supabase';
+import { GeminiResponse, CategoryData } from '../types';
 
 type FieldType = 'pictogram' | 'text';
 
@@ -20,18 +24,42 @@ interface Field {
   label: string;
   placeholder: string;
   type: FieldType;
-  defaultValue: string;
   description?: string;
 }
 
 const FIELDS: Field[] = [
-  { key: 'timeOfDay', label: 'Time of Day', defaultValue: 'Morning + Night', placeholder: 'e.g. Morning', type: 'pictogram' },
-  { key: 'howLong', label: 'How long to take for', defaultValue: '2 weeks', placeholder: 'e.g. 2 weeks', type: 'text' },
-  { key: 'dosage', label: 'Dosage', defaultValue: '3 pills each time', placeholder: 'e.g. 2 tablets', type: 'pictogram' },
-  { key: 'howToTake', label: 'How to take med', defaultValue: 'Crush pill', placeholder: 'e.g. With food', type: 'pictogram' },
-  { key: 'sideEffects', label: 'Side effects', defaultValue: 'Drowsiness', placeholder: 'e.g. Drowsiness', type: 'pictogram' },
-  { key: 'others', label: 'Others', defaultValue: '', placeholder: 'Any other meaningful notes…', type: 'text', description: "Any extracted text that doesn't fall into the 5 categories above but is still meaningful." },
+  { key: 'timeOfDay', label: 'Time of Day', placeholder: 'e.g. Morning', type: 'pictogram' },
+  { key: 'howLong', label: 'How long to take for', placeholder: 'e.g. 2 weeks', type: 'text' },
+  { key: 'dosage', label: 'Dosage', placeholder: 'e.g. 2 tablets', type: 'pictogram' },
+  { key: 'howToTake', label: 'How to take med', placeholder: 'e.g. With food', type: 'pictogram' },
+  { key: 'sideEffects', label: 'Side effects', placeholder: 'e.g. Drowsiness', type: 'pictogram' },
+  { key: 'others', label: 'Others', placeholder: 'Any other meaningful notes…', type: 'text', description: "Any extracted text that doesn't fall into the 5 categories above but is still meaningful." },
 ];
+
+function getSelectedLabel(category: CategoryData): string {
+  if (!category.selected_pictogram_id) return '';
+  const option = category.suggested_options.find(
+    (o) => o.pictogram_id === category.selected_pictogram_id
+  );
+  return option?.label || category.selected_pictogram_id;
+}
+
+const emptyCategory: CategoryData = { suggested_options: [], selected_pictogram_id: null };
+
+function buildDefaults(medicationData?: GeminiResponse): Record<string, string> {
+  if (!medicationData) {
+    return Object.fromEntries(FIELDS.map((f) => [f.key, '']));
+  }
+  const cats = medicationData.pictogram_categories ?? {};
+  return {
+    timeOfDay: getSelectedLabel(cats.time_of_day ?? emptyCategory),
+    howLong: '',
+    dosage: getSelectedLabel(cats.dosage ?? emptyCategory),
+    howToTake: getSelectedLabel(cats.special_instructions ?? emptyCategory),
+    sideEffects: '',
+    others: '',
+  };
+}
 
 function ArrowLeftIcon() {
   return (
@@ -73,19 +101,45 @@ function TypeTag({ type }: { type: FieldType }) {
   );
 }
 
-export default function ConfirmInformationScreen({ navigation }: any) {
+export default function ConfirmInformationScreen({ navigation, route }: any) {
   const insets = useSafeAreaInsets();
+  const { medicationData } = route.params as { medicationData?: GeminiResponse } || {};
 
-  const [formData, setFormData] = useState<Record<string, string>>(
-    Object.fromEntries(FIELDS.map((f) => [f.key, f.defaultValue]))
-  );
+  const [formData, setFormData] = useState<Record<string, string>>(buildDefaults(medicationData));
   const [includeOnLabel, setIncludeOnLabel] = useState<Record<string, boolean>>(
     Object.fromEntries(FIELDS.map((f) => [f.key, true]))
   );
   const [editingFields, setEditingFields] = useState<Record<string, boolean>>({});
+  const [saving, setSaving] = useState(false);
 
-  const handleNext = () => {
-    navigation.navigate('LanguageSelection', { formData, includeOnLabel });
+  const handleNext = async () => {
+    setSaving(true);
+    try {
+      let savedId = 'local';
+
+      if (medicationData) {
+        const { data, error } = await supabase
+          .from('Labels')
+          .insert([medicationData])
+          .select('id')
+          .single();
+
+        if (error) throw error;
+        savedId = data.id;
+      }
+
+      navigation.navigate('LanguageSelection', { formData, includeOnLabel, labelId: savedId });
+    } catch (err: any) {
+      Alert.alert('Save Failed', 'Could not save to database. Continuing without saving.', [
+        {
+          text: 'Continue',
+          onPress: () => navigation.navigate('LanguageSelection', { formData, includeOnLabel, labelId: 'local' }),
+        },
+        { text: 'Cancel' },
+      ]);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -99,6 +153,9 @@ export default function ConfirmInformationScreen({ navigation }: any) {
             </TouchableOpacity>
             <Text style={styles.title}>Confirm Information</Text>
           </View>
+          {medicationData && (
+            <Text style={styles.medName}>{medicationData.medication_name}</Text>
+          )}
           <Text style={styles.subtitle}>
             OCR has read your label — tap <Text style={styles.subtitleBold}>Edit</Text> on any field to correct a mistake
           </Text>
@@ -118,7 +175,6 @@ export default function ConfirmInformationScreen({ navigation }: any) {
 
             return (
               <View key={field.key} style={[styles.fieldCard, !included && styles.fieldCardDimmed]}>
-                {/* Label row */}
                 <View style={styles.fieldHeader}>
                   <Text style={styles.fieldLabel}>{field.label}</Text>
                   <TypeTag type={field.type} />
@@ -142,12 +198,10 @@ export default function ConfirmInformationScreen({ navigation }: any) {
                   </TouchableOpacity>
                 </View>
 
-                {/* Description */}
                 {field.description && (
                   <Text style={styles.fieldDesc}>{field.description}</Text>
                 )}
 
-                {/* Input or display */}
                 {isEditing ? (
                   <TextInput
                     value={value}
@@ -167,7 +221,6 @@ export default function ConfirmInformationScreen({ navigation }: any) {
                   </View>
                 )}
 
-                {/* Toggle */}
                 <View style={styles.toggleRow}>
                   <Text style={styles.toggleLabel}>
                     {included ? 'Included on label' : 'Excluded from label'}
@@ -186,8 +239,12 @@ export default function ConfirmInformationScreen({ navigation }: any) {
 
         {/* Footer CTA */}
         <View style={[styles.footer, { paddingBottom: 24 + insets.bottom }]}>
-          <TouchableOpacity onPress={handleNext} style={styles.ctaBtn} activeOpacity={0.85}>
-            <Text style={styles.ctaText}>Next</Text>
+          <TouchableOpacity onPress={handleNext} disabled={saving} style={[styles.ctaBtn, saving && styles.ctaBtnDisabled]} activeOpacity={0.85}>
+            {saving ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <Text style={styles.ctaText}>Next</Text>
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -201,6 +258,7 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 4 },
   backBtn: { width: 44, height: 44, backgroundColor: 'rgba(255,255,255,0.8)', borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 28, fontWeight: '700', color: '#1B3022', fontFamily: 'Georgia', flex: 1 },
+  medName: { fontSize: 20, fontWeight: '700', color: '#D37B5C', marginLeft: 60, marginBottom: 2 },
   subtitle: { fontSize: 15, color: 'rgba(27,48,34,0.55)', marginLeft: 60 },
   subtitleBold: { fontWeight: '600', color: 'rgba(27,48,34,0.7)' },
   scroll: { flex: 1, paddingHorizontal: 24 },
@@ -237,5 +295,6 @@ const styles = StyleSheet.create({
   toggleLabel: { fontSize: 12, color: 'rgba(27,48,34,0.55)', fontWeight: '500' },
   footer: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 24, paddingTop: 16 },
   ctaBtn: { backgroundColor: '#1B3022', borderRadius: 999, paddingVertical: 20, alignItems: 'center', minHeight: 64 },
+  ctaBtnDisabled: { backgroundColor: 'rgba(27,48,34,0.5)' },
   ctaText: { color: 'white', fontSize: 22, fontWeight: '700', fontFamily: 'Georgia' },
 });

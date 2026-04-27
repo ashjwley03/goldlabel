@@ -1,5 +1,8 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated } from 'react-native';
+import { View, Text, StyleSheet, Animated, Alert } from 'react-native';
+import { GeminiResponse } from '../types';
+
+const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://10.0.2.2:4000';
 
 function SparklesIcon() {
   return (
@@ -7,7 +10,9 @@ function SparklesIcon() {
   );
 }
 
-export default function ProcessingScreen({ navigation }: any) {
+export default function ProcessingScreen({ navigation, route }: any) {
+  const { imageUri } = route.params || {};
+
   const pulseScale = useRef(new Animated.Value(1)).current;
   const pulseOpacity = useRef(new Animated.Value(0.6)).current;
   const innerScale = useRef(new Animated.Value(1)).current;
@@ -59,20 +64,49 @@ export default function ProcessingScreen({ navigation }: any) {
     ]);
     dotAnims.start();
 
-    const timer = setTimeout(() => {
-      navigation.navigate('ConfirmInformation');
-    }, 3000);
+    processImage();
 
     return () => {
-      clearTimeout(timer);
       pulse.stop();
       dotAnims.stop();
     };
   }, []);
 
+  const processImage = async () => {
+    try {
+      if (!imageUri) throw new Error('No image provided');
+
+      const formData = new FormData();
+      formData.append('file', {
+        uri: imageUri,
+        name: 'photo.jpg',
+        type: 'image/jpeg',
+      } as any);
+
+      const response = await fetch(`${BACKEND_URL}/api/ocr/extract`, {
+        method: 'POST',
+        body: formData,
+        headers: { Accept: 'application/json' },
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || 'Backend processing failed');
+      }
+
+      const data: GeminiResponse = await response.json();
+      navigation.replace('ConfirmInformation', { medicationData: data });
+    } catch (err: any) {
+      Alert.alert(
+        'Processing Failed',
+        err.message || 'Could not read the label. Please try again.',
+        [{ text: 'OK', onPress: () => navigation.goBack() }]
+      );
+    }
+  };
+
   return (
     <View style={styles.container}>
-      {/* Pulsing circle */}
       <Animated.View
         style={[
           styles.outerCircle,
@@ -84,20 +118,15 @@ export default function ProcessingScreen({ navigation }: any) {
         </Animated.View>
       </Animated.View>
 
-      {/* Text */}
       <Animated.Text style={[styles.heading, { opacity: textOpacity }]}>Scanning…</Animated.Text>
       <Text style={styles.subtext}>Reading your medicine label</Text>
       <Text style={styles.subtext2}>Take a moment to relax</Text>
 
-      {/* Progress dots */}
       <View style={styles.dots}>
         {[dot0, dot1, dot2].map((dot, i) => (
           <Animated.View
             key={i}
-            style={[
-              styles.dot,
-              { transform: [{ scale: dot }] },
-            ]}
+            style={[styles.dot, { transform: [{ scale: dot }] }]}
           />
         ))}
       </View>
