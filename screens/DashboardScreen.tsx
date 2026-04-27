@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,12 +6,14 @@ import {
   TouchableOpacity,
   StyleSheet,
   Linking,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { mockMedications } from '../data/mockData';
-import { MedicationRecord } from '../types';
+import { useFocusEffect } from '@react-navigation/native';
+import { LabelRecord } from '../types';
+import { supabase } from '../utils/supabase';
 import { format, formatDistanceToNow, isToday, isThisWeek } from 'date-fns';
-import Svg, { Rect, Line, Circle, Path } from 'react-native-svg';
+import Svg, { Circle, Path } from 'react-native-svg';
 
 type TabId = 'today' | 'week' | 'all';
 const TABS: { id: TabId; label: string }[] = [
@@ -20,10 +22,10 @@ const TABS: { id: TabId; label: string }[] = [
   { id: 'all', label: 'All' },
 ];
 
-function filterMeds(meds: typeof mockMedications, tab: TabId) {
-  if (tab === 'today') return meds.filter((m) => isToday(m.scannedAt));
-  if (tab === 'week') return meds.filter((m) => isThisWeek(m.scannedAt, { weekStartsOn: 1 }));
-  return meds;
+function filterLabels(labels: LabelRecord[], tab: TabId) {
+  if (tab === 'today') return labels.filter((l) => isToday(new Date(l.created_at)));
+  if (tab === 'week') return labels.filter((l) => isThisWeek(new Date(l.created_at), { weekStartsOn: 1 }));
+  return labels;
 }
 
 function LabelThumbnail() {
@@ -77,9 +79,32 @@ function ScanCameraIcon() {
 export default function DashboardScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<TabId>('all');
+  const [labels, setLabels] = useState<LabelRecord[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const sortedMeds = [...mockMedications].sort((a, b) => b.scannedAt.getTime() - a.scannedAt.getTime());
-  const filteredMeds = filterMeds(sortedMeds, activeTab);
+  useFocusEffect(
+    useCallback(() => {
+      fetchLabels();
+    }, [])
+  );
+
+  const fetchLabels = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('Labels')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      setLabels(data || []);
+    } catch {
+      setLabels([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredLabels = filterLabels(labels, activeTab);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -113,7 +138,11 @@ export default function DashboardScreen({ navigation }: any) {
         contentContainerStyle={{ paddingBottom: 160 + insets.bottom }}
         showsVerticalScrollIndicator={false}
       >
-        {filteredMeds.length === 0 ? (
+        {loading ? (
+          <View style={styles.emptyState}>
+            <ActivityIndicator size="large" color="#1B3022" />
+          </View>
+        ) : filteredLabels.length === 0 ? (
           <View style={styles.emptyState}>
             <CameraIcon />
             <Text style={styles.emptyTitle}>
@@ -123,23 +152,27 @@ export default function DashboardScreen({ navigation }: any) {
           </View>
         ) : (
           <View style={styles.list}>
-            {filteredMeds.map((med) => (
-              <TouchableOpacity
-                key={med.id}
-                onPress={() => navigation.navigate('PrintPreview', { medicationId: med.id })}
-                style={styles.card}
-                activeOpacity={0.75}
-              >
-                <View style={styles.cardRow}>
-                  <View style={styles.cardInfo}>
-                    <Text style={styles.cardTime}>{format(med.scannedAt, 'h:mm a')}</Text>
-                    <Text style={styles.cardDate}>{format(med.scannedAt, 'MMMM d, yyyy')}</Text>
-                    <Text style={styles.cardRelative}>{formatDistanceToNow(med.scannedAt, { addSuffix: true })}</Text>
+            {filteredLabels.map((label) => {
+              const date = new Date(label.created_at);
+              return (
+                <TouchableOpacity
+                  key={label.id}
+                  onPress={() => navigation.navigate('PictographView', { label })}
+                  style={styles.card}
+                  activeOpacity={0.75}
+                >
+                  <View style={styles.cardRow}>
+                    <View style={styles.cardInfo}>
+                      <Text style={styles.cardMedName}>{label.medication_name}</Text>
+                      <Text style={styles.cardTime}>{format(date, 'h:mm a')}</Text>
+                      <Text style={styles.cardDate}>{format(date, 'MMMM d, yyyy')}</Text>
+                      <Text style={styles.cardRelative}>{formatDistanceToNow(date, { addSuffix: true })}</Text>
+                    </View>
+                    <LabelThumbnail />
                   </View>
-                  <LabelThumbnail />
-                </View>
-              </TouchableOpacity>
-            ))}
+                </TouchableOpacity>
+              );
+            })}
           </View>
         )}
 
@@ -203,11 +236,12 @@ const styles = StyleSheet.create({
   emptyTitle: { fontSize: 22, fontWeight: '700', color: 'rgba(27,48,34,0.5)', fontFamily: 'Georgia', marginTop: 20, marginBottom: 8 },
   emptySubtitle: { fontSize: 17, color: 'rgba(27,48,34,0.4)', textAlign: 'center' },
   list: { paddingTop: 4 },
-  card: { backgroundColor: 'rgba(255,255,255,0.7)', borderRadius: 20, paddingHorizontal: 24, paddingVertical: 20, minHeight: 88, marginBottom: 16 },
+  card: { backgroundColor: 'rgba(255,255,255,0.7)', borderRadius: 20, paddingHorizontal: 24, paddingVertical: 20, marginBottom: 16 },
   cardRow: { flexDirection: 'row', alignItems: 'center', width: '100%' },
   cardInfo: { flex: 1, marginRight: 16 },
-  cardTime: { fontSize: 30, fontWeight: '700', color: '#1B3022', fontFamily: 'Georgia', lineHeight: 36 },
-  cardDate: { fontSize: 17, color: 'rgba(27,48,34,0.75)', marginTop: 2 },
+  cardMedName: { fontSize: 20, fontWeight: '700', color: '#1B3022', fontFamily: 'Georgia', marginBottom: 4 },
+  cardTime: { fontSize: 26, fontWeight: '700', color: '#1B3022', fontFamily: 'Georgia', lineHeight: 32 },
+  cardDate: { fontSize: 15, color: 'rgba(27,48,34,0.75)', marginTop: 2 },
   cardRelative: { fontSize: 13, color: 'rgba(27,48,34,0.45)', marginTop: 2 },
   thumbnail: { width: 80, height: 80, backgroundColor: 'white', borderRadius: 16, borderWidth: 3, borderColor: 'rgba(27,48,34,0.15)', alignItems: 'center', justifyContent: 'center' },
   thumbnailGrid: { flexDirection: 'row', flexWrap: 'wrap', width: 62, height: 62 },
