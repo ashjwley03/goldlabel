@@ -12,3 +12,4 @@ web-build/
 .env
 .env.local
 .env*.local
+backend/service_account_auth.json
