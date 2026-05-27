@@ -1,0 +1,139 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MedicationLabelTrainingData",
+  "description": "Training data schema for GoldLabel medication label OCR model. Each entry maps raw OCR text to a set of pictogram actions across 6 categories. Pictograms are language-specific images with text embedded — no separate label field. One pictogram per action per language.",
+  "type": "object",
+  "required": [
+    "raw_ocr_reference",
+    "medication_name",
+    "language",
+    "pictogram_categories"
+  ],
+  "properties": {
+    "raw_ocr_reference": {
+      "type": "string",
+      "description": "The original OCR text from GCP Cloud Vision used to train the model."
+    },
+    "medication_name": {
+      "type": "string",
+      "description": "The extracted name of the medicine."
+    },
+    "language": {
+      "type": "string",
+      "description": "Language code indicating which language variant of the pictograms to use. Use 'none' for pictogram-only labels with no embedded text. The remaining 12 codes are ISO 639-1 language codes.",
+      "enum": ["none", "en", "bn", "hi", "kn", "ml", "te", "my", "th", "vi", "zh", "ms", "ta"],
+      "enumDescriptions": {
+        "none": "No text — pictogram only",
+        "en": "English",
+        "bn": "Bengali (বাংলা)",
+        "hi": "Hindi (हिन्दी)",
+        "kn": "Kannada (ಕನ್ನಡ)",
+        "ml": "Malayalam (മലയാളം)",
+        "te": "Telugu (తెలుగు)",
+        "my": "Burmese (မြန်မာဘာသာ)",
+        "th": "Thai (ภาษาไทย)",
+        "vi": "Vietnamese (Tiếng Việt)",
+        "zh": "Chinese (中文)",
+        "ms": "Malay (Bahasa Melayu)",
+        "ta": "Tamil (தமிழ்)"
+      }
+    },
+    "pictogram_categories": {
+      "type": "object",
+      "description": "Each property maps to a pictogram category. The value is a pictogram_id string referencing a specific action image in the database, or null if the category is not applicable for this medication.",
+      "required": [
+        "how_to_take",
+        "side_effects",
+        "duration",
+        "dosage",
+        "time_of_day",
+        "precautions"
+      ],
+      "properties": {
+        "how_to_take": {
+          "type": ["string", "null"],
+          "description": "Pictogram ID for how the medication should be taken (e.g. swallow whole, dissolve in water, take with food). 8 unique pictograms per language; 104 total across 13 languages.",
+          "examples": [
+            "how_to_take_swallow_whole",
+            "how_to_take_dissolve_in_water",
+            "how_to_take_take_with_food",
+            "how_to_take_take_with_water",
+            "how_to_take_take_on_empty_stomach",
+            "how_to_take_take_30min_before_food",
+            "how_to_take_take_30min_after_food"
+          ]
+        },
+        "side_effects": {
+          "type": ["string", "null"],
+          "description": "Pictogram ID for a notable side effect of the medication. 17 unique pictograms per language; 221 total across 13 languages.",
+          "examples": [
+            "side_effects_may_cause_drowsiness",
+            "side_effects_may_cause_dizziness",
+            "side_effects_avoid_driving"
+          ]
+        },
+        "duration": {
+          "type": ["string", "null"],
+          "description": "Pictogram ID for how long the medication course should last. 7 unique pictograms per language; 91 total across 13 languages.",
+          "examples": [
+            "duration_3_days",
+            "duration_5_days",
+            "duration_7_days",
+            "duration_14_days",
+            "duration_as_directed"
+          ]
+        },
+        "dosage": {
+          "type": ["string", "null"],
+          "description": "Pictogram ID for the dose amount or frequency (e.g. 1 tablet, 2 tablets, 3 times a day). 27 unique pictograms per language; 351 total across 13 languages.",
+          "examples": [
+            "dosage_1_tablet",
+            "dosage_2_tablets",
+            "dosage_3_tablets",
+            "dosage_once_daily",
+            "dosage_twice_daily",
+            "dosage_three_times_daily"
+          ]
+        },
+        "time_of_day": {
+          "type": ["string", "null"],
+          "description": "Pictogram ID for the time of day the medication should be taken. 13 unique pictograms per language; 169 total across 13 languages.",
+          "examples": [
+            "time_of_day_morning",
+            "time_of_day_afternoon",
+            "time_of_day_evening",
+            "time_of_day_night",
+            "time_of_day_before_bed"
+          ]
+        },
+        "precautions": {
+          "type": ["string", "null"],
+          "description": "Pictogram ID for special precautions or warnings (e.g. avoid alcohol, avoid sunlight, keep refrigerated). 17 unique pictograms per language; 221 total across 13 languages.",
+          "examples": [
+            "precautions_avoid_alcohol",
+            "precautions_avoid_sunlight",
+            "precautions_keep_refrigerated",
+            "precautions_do_not_crush"
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "examples": [
+    {
+      "raw_ocr_reference": "Metformin 500mg. Take 1 tablet twice daily with food. May cause nausea. Take for 30 days.",
+      "medication_name": "Metformin 500mg",
+      "language": "en",
+      "pictogram_categories": {
+        "how_to_take": "how_to_take_take_with_food",
+        "side_effects": "side_effects_may_cause_nausea",
+        "duration": "duration_30_days",
+        "dosage": "dosage_1_tablet_twice_daily",
+        "time_of_day": null,
+        "precautions": null
+      }
+    }
+  ]
+}
