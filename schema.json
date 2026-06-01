@@ -74,46 +74,97 @@
         },
         "duration": {
           "type": ["string", "null"],
-          "description": "Pictogram ID for how long the medication course should last. 7 unique pictograms per language; 91 total across 13 languages.",
+          "description": "Pictogram ID for how long the medication course should last. 36 unique pictograms per language; 468 total across 13 languages.",
           "examples": [
+            "duration_1_day",
             "duration_3_days",
             "duration_5_days",
             "duration_7_days",
-            "duration_14_days",
-            "duration_as_directed"
+            "duration_10_days",
+            "duration_1_week",
+            "duration_4_weeks",
+            "duration_10_weeks",
+            "duration_1_month",
+            "duration_3_months",
+            "duration_6_months",
+            "duration_12_months",
+            "duration_complete_course",
+            "duration_stop_on_doctors_advice",
+            "duration_take_until_symptoms_resolve",
+            "duration_repeat_cycle"
           ]
         },
         "dosage": {
           "type": ["string", "null"],
-          "description": "Pictogram ID for the dose amount or frequency (e.g. 1 tablet, 2 tablets, 3 times a day). 27 unique pictograms per language; 351 total across 13 languages.",
+          "description": "Pictogram ID for the dose amount (e.g. 1 tablet, 2 ear drops, 1 teaspoon, 5ml injection). 27 unique pictograms per language; 351 total across 13 languages.",
           "examples": [
+            "dosage_half_tablet",
             "dosage_1_tablet",
+            "dosage_1_and_half_tablets",
             "dosage_2_tablets",
             "dosage_3_tablets",
-            "dosage_once_daily",
-            "dosage_twice_daily",
-            "dosage_three_times_daily"
+            "dosage_4_tablets",
+            "dosage_4_and_half_tablets",
+            "dosage_1_teaspoon",
+            "dosage_2_teaspoons",
+            "dosage_3_teaspoons",
+            "dosage_1_tablespoon",
+            "dosage_2_tablespoons",
+            "dosage_3_tablespoons",
+            "dosage_1_ear_drop",
+            "dosage_2_ear_drops",
+            "dosage_3_ear_drops",
+            "dosage_4_ear_drops",
+            "dosage_1_eye_drop",
+            "dosage_2_eye_drops",
+            "dosage_3_eye_drops",
+            "dosage_4_eye_drops",
+            "dosage_injection_5ml",
+            "dosage_injection_10ml",
+            "dosage_injection_15ml",
+            "dosage_injection_20ml"
           ]
         },
         "time_of_day": {
           "type": ["string", "null"],
-          "description": "Pictogram ID for the time of day the medication should be taken. 13 unique pictograms per language; 169 total across 13 languages.",
+          "description": "Pictogram ID for when and how often the medication should be taken (time of day, meal, or dose frequency). 13 unique pictograms per language; 169 total across 13 languages.",
           "examples": [
+            "time_of_day_once_daily",
+            "time_of_day_twice_daily",
+            "time_of_day_thrice_daily",
             "time_of_day_morning",
-            "time_of_day_afternoon",
-            "time_of_day_evening",
+            "time_of_day_noon",
             "time_of_day_night",
-            "time_of_day_before_bed"
+            "time_of_day_upon_waking_up",
+            "time_of_day_before_bed",
+            "time_of_day_every_4_hours",
+            "time_of_day_every_8_hours",
+            "time_of_day_with_breakfast",
+            "time_of_day_with_lunch",
+            "time_of_day_with_dinner"
           ]
         },
         "precautions": {
           "type": ["string", "null"],
-          "description": "Pictogram ID for special precautions or warnings (e.g. avoid alcohol, avoid sunlight, keep refrigerated). 17 unique pictograms per language; 221 total across 13 languages.",
+          "description": "Pictogram ID for special precautions or warnings (e.g. avoid alcohol, keep refrigerated, keep away from children). 17 unique pictograms per language; 221 total across 13 languages.",
           "examples": [
             "precautions_avoid_alcohol",
-            "precautions_avoid_sunlight",
+            "precautions_avoid_dairy",
+            "precautions_avoid_grapefruit",
             "precautions_keep_refrigerated",
-            "precautions_do_not_crush"
+            "precautions_keep_refrigerated_do_not_freeze",
+            "precautions_keep_away_from_light",
+            "precautions_keep_away_from_children",
+            "precautions_keep_away_from_pets",
+            "precautions_dispose_properly",
+            "precautions_do_not_share",
+            "precautions_do_not_take_if_pregnant",
+            "precautions_do_not_take_if_breastfeeding",
+            "precautions_consult_doctor_before_taking",
+            "precautions_consult_doctor_if_symptoms_worsen",
+            "precautions_check_expiry_date",
+            "precautions_discard_8_weeks_after_opening",
+            "precautions_store_in_cool_dry_place"
           ]
         }
       },
@@ -129,9 +180,9 @@
       "pictogram_categories": {
         "how_to_take": "how_to_take_take_with_food",
         "side_effects": "side_effects_may_cause_nausea",
-        "duration": "duration_30_days",
-        "dosage": "dosage_1_tablet_twice_daily",
-        "time_of_day": null,
+        "duration": "duration_1_month",
+        "dosage": "dosage_1_tablet",
+        "time_of_day": "time_of_day_twice_daily",
         "precautions": null
       }
     }
