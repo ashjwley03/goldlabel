@@ -12,32 +12,41 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import { supabase } from '../utils/supabase';
 
-const BUCKET = 'pictograms'; 
+const BUCKET = 'pictograms';
 
-async function resolvePictogramUrl(pictogramId: string, lang: string): Promise<string | null> {
+// One row from pictogram_assets, scoped to whichever language is selected.
+type PictogramRow = {
+  pictogram_id: string;
+  variant_id: string;
+  category_key: string;
+  asset_path: string;
+  label: string;
+};
+
+// Fetches EVERY pictogram for a given language in a single query, instead of
+// one request per tile. Returns rows already grouped by category_key.
+async function fetchAllPictograms(lang: string): Promise<Record<string, PictogramRow[]>> {
   const { data, error } = await supabase
     .from('pictogram_assets')
-    .select('asset_path')
-    .eq('pictogram_id', pictogramId)
+    .select('pictogram_id, variant_id, category_key, asset_path, label')
     .eq('language_code', lang)
     .eq('is_default', true)
-    .maybeSingle();
+    .order('sort_order', { ascending: true });
 
-  if (error || !data?.asset_path) return null;
+  if (error || !data) return {};
 
-  const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(data.asset_path);
-  return urlData?.publicUrl ?? null;
+  const grouped: Record<string, PictogramRow[]> = {};
+  for (const row of data as PictogramRow[]) {
+    if (!grouped[row.category_key]) grouped[row.category_key] = [];
+    grouped[row.category_key].push(row);
+  }
+  return grouped;
 }
 
-const TEST_PICTOGRAM_IDS: string[] = [
-  'dosage.tablet_1_5',
-  'time_of_day.once_daily',
-  'how_to_take.with_food',
-  'how_to_take.dissolve_in_water_v1',
-  'duration.take_1_month',
-  'side_effects.nausea',
-  'precautions.consult_doctor_if_symptoms_worsen',
-];
+function getPublicUrl(assetPath: string): string {
+  const { data } = supabase.storage.from(BUCKET).getPublicUrl(assetPath);
+  return data?.publicUrl ?? '';
+}
 
 const LANGUAGES = [
   { code: 'none', name: 'No text' },
@@ -69,28 +78,9 @@ function ArrowLeftIcon() {
   );
 }
 
-function PictogramTile({ pictogramId, lang }: { pictogramId: string; lang: string }) {
+function PictogramTile({ row }: { row: PictogramRow }) {
   const [status, setStatus] = useState<'loading' | 'ok' | 'error'>('loading');
-  const [uri, setUri] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    setStatus('loading');
-    setUri(null);
-
-    resolvePictogramUrl(pictogramId, lang).then((url) => {
-      if (cancelled) return;
-      if (!url) {
-        setStatus('error');
-      } else {
-        setUri(url);
-      }
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [pictogramId, lang]);
+  const uri = getPublicUrl(row.asset_path);
 
   return (
     <View style={styles.tile}>
@@ -101,27 +91,61 @@ function PictogramTile({ pictogramId, lang }: { pictogramId: string; lang: strin
             <Text style={styles.missingText}>image{'\n'}missing</Text>
           </View>
         )}
-        {uri && (
-          <Image
-            key={uri}
-            source={{ uri }}
-            style={styles.image}
-            resizeMode="contain"
-            onLoad={() => setStatus('ok')}
-            onError={() => setStatus('error')}
-          />
-        )}
+        <Image
+          key={uri}
+          source={{ uri }}
+          style={styles.image}
+          resizeMode="contain"
+          onLoad={() => setStatus('ok')}
+          onError={() => setStatus('error')}
+        />
       </View>
       <Text style={styles.tileId} numberOfLines={2}>
-        {pictogramId}
+        {row.pictogram_id}
+        {row.variant_id !== 'v0' ? ` (${row.variant_id})` : ''}
       </Text>
+    </View>
+  );
+}
+
+function CategorySection({ categoryKey, rows }: { categoryKey: string; rows: PictogramRow[] }) {
+  const displayName = categoryKey.replace(/_/g, ' ');
+  return (
+    <View style={styles.section}>
+      <Text style={styles.sectionHeader}>
+        {displayName} <Text style={styles.sectionCount}>({rows.length})</Text>
+      </Text>
+      <View style={styles.grid}>
+        {rows.map((row) => (
+          <PictogramTile key={`${row.pictogram_id}-${row.variant_id}`} row={row} />
+        ))}
+      </View>
     </View>
   );
 }
 
 export default function PictogramTestScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
-  const [lang, setLang] = useState('en');
+  const [lang, setLang] = useState('vi');
+  const [grouped, setGrouped] = useState<Record<string, PictogramRow[]>>({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    fetchAllPictograms(lang).then((result) => {
+      if (!cancelled) {
+        setGrouped(result);
+        setLoading(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [lang]);
+
+  const totalCount = Object.values(grouped).reduce((sum, rows) => sum + rows.length, 0);
+  const categories = Object.keys(grouped).sort();
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -133,7 +157,9 @@ export default function PictogramTestScreen({ navigation }: any) {
         )}
         <View style={{ flex: 1 }}>
           <Text style={styles.title}>Pictogram Test</Text>
-          <Text style={styles.subtitle}>Hardcoded IDs · language: {lang}</Text>
+          <Text style={styles.subtitle}>
+            {loading ? 'Loading…' : `${totalCount} pictograms`} · language: {lang}
+          </Text>
         </View>
       </View>
 
@@ -141,6 +167,7 @@ export default function PictogramTestScreen({ navigation }: any) {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
+        style={styles.langRowOuter}
         contentContainerStyle={styles.langRow}
       >
         {LANGUAGES.map((l) => {
@@ -160,11 +187,16 @@ export default function PictogramTestScreen({ navigation }: any) {
         })}
       </ScrollView>
 
-      {/* The grid of pictograms */}
-      <ScrollView contentContainerStyle={[styles.grid, { paddingBottom: 40 + insets.bottom }]}>
-        {TEST_PICTOGRAM_IDS.map((id) => (
-          <PictogramTile key={`${id}-${lang}`} pictogramId={id} lang={lang} />
-        ))}
+      {/* Every pictogram for the selected language, grouped by category */}
+      <ScrollView contentContainerStyle={[styles.scrollBody, { paddingBottom: 40 + insets.bottom }]}>
+        {loading && <ActivityIndicator color={COLORS.dark} style={{ marginTop: 40 }} />}
+        {!loading && totalCount === 0 && (
+          <Text style={styles.emptyText}>No pictograms found for this language yet.</Text>
+        )}
+        {!loading &&
+          categories.map((categoryKey) => (
+            <CategorySection key={categoryKey} categoryKey={categoryKey} rows={grouped[categoryKey]} />
+          ))}
       </ScrollView>
     </View>
   );
@@ -176,6 +208,7 @@ const styles = StyleSheet.create({
   backBtn: { width: 44, height: 44, backgroundColor: 'rgba(255,255,255,0.8)', borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 28, fontWeight: '700', color: COLORS.dark, fontFamily: 'Georgia' },
   subtitle: { fontSize: 15, color: 'rgba(27,48,34,0.55)', marginTop: 2 },
+  langRowOuter: { flexGrow: 0, height: 60 },
   langRow: { paddingHorizontal: 24, paddingVertical: 8, gap: 8 },
   langChip: {
     paddingHorizontal: 16,
@@ -188,12 +221,22 @@ const styles = StyleSheet.create({
   langChipSelected: { backgroundColor: COLORS.dark, borderColor: COLORS.dark },
   langChipText: { fontSize: 14, fontWeight: '600', color: COLORS.accent },
   langChipTextSelected: { color: 'white' },
+  scrollBody: { paddingHorizontal: 24, paddingTop: 8 },
+  emptyText: { textAlign: 'center', color: 'rgba(27,48,34,0.55)', marginTop: 40, fontSize: 15 },
+  section: { marginTop: 20 },
+  sectionHeader: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.dark,
+    fontFamily: 'Georgia',
+    textTransform: 'capitalize',
+    marginBottom: 12,
+  },
+  sectionCount: { fontWeight: '400', color: 'rgba(27,48,34,0.5)', fontSize: 14 },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    paddingHorizontal: 24,
-    paddingTop: 12,
     gap: 16,
   },
   tile: {
@@ -202,6 +245,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 12,
     alignItems: 'center',
+    marginBottom: 16,
     shadowColor: COLORS.dark,
     shadowOpacity: 0.1,
     shadowRadius: 8,

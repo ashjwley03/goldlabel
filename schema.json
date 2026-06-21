@@ -55,14 +55,18 @@
           "description": "Pictogram ID for how the medication should be taken (e.g. swallow whole, dissolve in water, take with food). 8 unique pictograms per language; 104 total across 13 languages.",
           "examples": [
             "how_to_take.swallow_whole",
-            "how_to_take.dissolve_in_water_v1",
-            "how_to_take.dissolve_in_water_v2",
+            "how_to_take.dissolve_in_water",
             "how_to_take.with_food",
             "how_to_take.with_water",
             "how_to_take.empty_stomach",
             "how_to_take.take_30_min_before_food",
             "how_to_take.take_30_min_after_food"
           ]
+        },
+        "how_to_take_variant": {
+          "type": ["string", "null"],
+          "description": "Optional variant identifier for how_to_take, used only when a pictogram has more than one art version (e.g. 'how_to_take.dissolve_in_water' has v1=powder/sachet and v2=tablet/effervescent). Omit or set to null when how_to_take has no variants. Database default is 'v0'.",
+          "examples": ["v1", "v2"]
         },
         "side_effects": {
           "type": ["string", "null"],
