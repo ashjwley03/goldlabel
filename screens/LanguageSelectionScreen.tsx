@@ -39,7 +39,14 @@ function CheckIcon() {
 
 export default function LanguageSelectionScreen({ navigation, route }: any) {
   const insets = useSafeAreaInsets();
-  const { formData = {}, includeOnLabel = {} } = route.params || {};
+  const {
+    formData = {},
+    includeOnLabel = {},
+    labelId = 'local',
+    imageUri,
+    imageBase64,
+    rawOcrText = '',
+  } = route.params || {};
   const [selectedLanguage, setSelectedLanguage] = useState('en');
 
   const handleConfirm = () => {
@@ -47,7 +54,10 @@ export default function LanguageSelectionScreen({ navigation, route }: any) {
       ...formData,
       includeOnLabel,
       language: selectedLanguage,
-      id: '1',
+      labelId,
+      imageUri,
+      imageBase64,
+      rawOcrText,
     });
   };
 

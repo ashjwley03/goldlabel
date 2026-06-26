@@ -4,47 +4,42 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  TextInput,
   Switch,
   StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  Alert,
   ActivityIndicator,
+  Alert,
+  Modal,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Path, Circle } from 'react-native-svg';
 import { supabase } from '../utils/supabase';
-import { GeminiResponse, CategoryData } from '../types';
-
-type FieldType = 'pictogram' | 'text';
+import { GeminiResponse } from '../types';
+import {
+  TIME_OPTIONS,
+  HOW_TO_TAKE_OPTIONS,
+  SIDE_EFFECT_OPTIONS,
+  DURATION_OPTIONS,
+  DOSAGE_OPTIONS,
+  PRECAUTIONS_OPTIONS,
+  PictogramOption,
+} from '../components/PictogramData';
+import { getFriendlyLabel } from '../components/PictogramGrid';
 
 interface Field {
   key: string;
   label: string;
   placeholder: string;
-  type: FieldType;
-  description?: string;
+  options: PictogramOption[];
 }
 
 const FIELDS: Field[] = [
-  { key: 'timeOfDay', label: 'Time of Day', placeholder: 'e.g. Morning', type: 'pictogram' },
-  { key: 'howLong', label: 'How long to take for', placeholder: 'e.g. 2 weeks', type: 'text' },
-  { key: 'dosage', label: 'Dosage', placeholder: 'e.g. 2 tablets', type: 'pictogram' },
-  { key: 'howToTake', label: 'How to take med', placeholder: 'e.g. With food', type: 'pictogram' },
-  { key: 'sideEffects', label: 'Side effects', placeholder: 'e.g. Drowsiness', type: 'pictogram' },
-  { key: 'others', label: 'Others', placeholder: 'Any other meaningful notes…', type: 'text', description: "Any extracted text that doesn't fall into the 5 categories above but is still meaningful." },
+  { key: 'time_of_day', label: 'Time of Day', placeholder: 'Select time...', options: TIME_OPTIONS },
+  { key: 'dosage', label: 'Dosage', placeholder: 'Select dosage...', options: DOSAGE_OPTIONS },
+  { key: 'how_to_take', label: 'How to Take', placeholder: 'Select taking method...', options: HOW_TO_TAKE_OPTIONS },
+  { key: 'side_effects', label: 'Side Effects', placeholder: 'Select side effects...', options: SIDE_EFFECT_OPTIONS },
+  { key: 'duration', label: 'Duration', placeholder: 'Select duration...', options: DURATION_OPTIONS },
+  { key: 'precautions', label: 'Precautions', placeholder: 'Select precautions...', options: PRECAUTIONS_OPTIONS },
 ];
-
-function getSelectedLabel(category: CategoryData): string {
-  if (!category.selected_pictogram_id) return '';
-  const option = category.suggested_options.find(
-    (o) => o.pictogram_id === category.selected_pictogram_id
-  );
-  return option?.label || category.selected_pictogram_id;
-}
-
-const emptyCategory: CategoryData = { suggested_options: [], selected_pictogram_id: null };
 
 function buildDefaults(medicationData?: GeminiResponse): Record<string, string> {
   if (!medicationData) {
@@ -52,13 +47,23 @@ function buildDefaults(medicationData?: GeminiResponse): Record<string, string> 
   }
   const cats = medicationData.pictogram_categories ?? {};
   return {
-    timeOfDay: getSelectedLabel(cats.time_of_day ?? emptyCategory),
-    howLong: '',
-    dosage: getSelectedLabel(cats.dosage ?? emptyCategory),
-    howToTake: getSelectedLabel(cats.special_instructions ?? emptyCategory),
-    sideEffects: '',
-    others: '',
+    time_of_day: cats.time_of_day || '',
+    dosage: cats.dosage || '',
+    how_to_take: cats.how_to_take || '',
+    side_effects: cats.side_effects || '',
+    duration: cats.duration || '',
+    precautions: cats.precautions || '',
   };
+}
+
+function buildIncludeDefaults(medicationData?: GeminiResponse): Record<string, boolean> {
+  if (!medicationData) {
+    return Object.fromEntries(FIELDS.map((f) => [f.key, false]));
+  }
+  const cats = medicationData.pictogram_categories ?? {};
+  return Object.fromEntries(
+    FIELDS.map((f) => [f.key, cats[f.key as keyof typeof cats] !== null])
+  );
 }
 
 function ArrowLeftIcon() {
@@ -78,38 +83,21 @@ function PencilIcon({ color = '#1B3022' }: { color?: string }) {
   );
 }
 
-function CheckIcon() {
+function XIcon() {
   return (
-    <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
-      <Path d="M20 6 9 17l-5-5" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+    <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+      <Path d="M18 6 6 18M6 6l12 12" stroke="#1B3022" strokeWidth="2" strokeLinecap="round" />
     </Svg>
-  );
-}
-
-function TypeTag({ type }: { type: FieldType }) {
-  if (type === 'pictogram') {
-    return (
-      <View style={styles.tagPictogram}>
-        <Text style={styles.tagPictogramText}>Pictogram</Text>
-      </View>
-    );
-  }
-  return (
-    <View style={styles.tagText}>
-      <Text style={styles.tagTextText}>Text</Text>
-    </View>
   );
 }
 
 export default function ConfirmInformationScreen({ navigation, route }: any) {
   const insets = useSafeAreaInsets();
-  const { medicationData } = route.params as { medicationData?: GeminiResponse } || {};
+  const { medicationData, imageUri, imageBase64 } = route.params || {};
 
   const [formData, setFormData] = useState<Record<string, string>>(buildDefaults(medicationData));
-  const [includeOnLabel, setIncludeOnLabel] = useState<Record<string, boolean>>(
-    Object.fromEntries(FIELDS.map((f) => [f.key, true]))
-  );
-  const [editingFields, setEditingFields] = useState<Record<string, boolean>>({});
+  const [includeOnLabel, setIncludeOnLabel] = useState<Record<string, boolean>>(buildIncludeDefaults(medicationData));
+  const [activePickerField, setActivePickerField] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const handleNext = async () => {
@@ -117,30 +105,55 @@ export default function ConfirmInformationScreen({ navigation, route }: any) {
     try {
       let savedId = 'local';
 
+      // Build the final pictogram_categories mapping
+      const finalCategories: Record<string, string | null> = {};
+      FIELDS.forEach((f) => {
+        finalCategories[f.key] = includeOnLabel[f.key] && formData[f.key] ? formData[f.key] : null;
+      });
+
       if (medicationData) {
+        // Construct the row in the finalized schema format for Labels table
+        const labelRow = {
+          raw_text: medicationData.raw_ocr_reference || '',
+          medication_name: medicationData.medication_name || '',
+          pictogram_categories: {
+            language: medicationData.language || 'en',
+            ...finalCategories
+          }
+        };
+
         const { data, error } = await supabase
           .from('Labels')
-          .insert([medicationData])
+          .insert([labelRow])
           .select('id')
           .single();
 
         if (error) throw error;
-        savedId = data.id;
+        savedId = String(data.id);
       }
 
-      navigation.navigate('LanguageSelection', { formData, includeOnLabel, labelId: savedId });
+      navigation.navigate('LanguageSelection', {
+        formData,
+        includeOnLabel,
+        labelId: savedId,
+        imageUri,
+        imageBase64,
+        rawOcrText: medicationData?.raw_ocr_reference || ''
+      });
     } catch (err: any) {
       console.error('Supabase save error:', err);
-      const detail = [
-        err?.message && `Message: ${err.message}`,
-        err?.code && `Code: ${err.code}`,
-        err?.details && `Details: ${err.details}`,
-        err?.hint && `Hint: ${err.hint}`,
-      ].filter(Boolean).join('\n') || JSON.stringify(err);
+      const detail = err?.message || JSON.stringify(err);
       Alert.alert('Save Failed', detail || 'Could not save to database.', [
         {
           text: 'Continue',
-          onPress: () => navigation.navigate('LanguageSelection', { formData, includeOnLabel, labelId: 'local' }),
+          onPress: () => navigation.navigate('LanguageSelection', {
+            formData,
+            includeOnLabel,
+            labelId: 'local',
+            imageUri,
+            imageBase64,
+            rawOcrText: medicationData?.raw_ocr_reference || ''
+          }),
         },
         { text: 'Cancel' },
       ]);
@@ -149,118 +162,141 @@ export default function ConfirmInformationScreen({ navigation, route }: any) {
     }
   };
 
+  const getActiveFieldOptions = (): PictogramOption[] => {
+    if (!activePickerField) return [];
+    const field = FIELDS.find((f) => f.key === activePickerField);
+    return field ? field.options : [];
+  };
+
+  const getActiveFieldLabel = (): string => {
+    if (!activePickerField) return '';
+    const field = FIELDS.find((f) => f.key === activePickerField);
+    return field ? field.label : '';
+  };
+
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <View style={[styles.container, { paddingTop: insets.top }]}>
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.headerRow}>
-            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} activeOpacity={0.7}>
-              <ArrowLeftIcon />
-            </TouchableOpacity>
-            <Text style={styles.title}>Confirm Information</Text>
-          </View>
-          {medicationData && (
-            <Text style={styles.medName}>{medicationData.medication_name}</Text>
-          )}
-          <Text style={styles.subtitle}>
-            OCR has read your label — tap <Text style={styles.subtitleBold}>Edit</Text> on any field to correct a mistake
-          </Text>
-        </View>
-
-        {/* Scrollable form */}
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={{ paddingBottom: 120 + insets.bottom }}
-          showsVerticalScrollIndicator={false}
-        >
-          {FIELDS.map((field) => {
-            const included = includeOnLabel[field.key];
-            const isEditing = editingFields[field.key] ?? false;
-            const value = formData[field.key];
-            const isEmpty = !value || value.trim().length === 0;
-
-            return (
-              <View key={field.key} style={[styles.fieldCard, !included && styles.fieldCardDimmed]}>
-                <View style={styles.fieldHeader}>
-                  <Text style={styles.fieldLabel}>{field.label}</Text>
-                  <TypeTag type={field.type} />
-                  <TouchableOpacity
-                    onPress={() => setEditingFields((prev) => ({ ...prev, [field.key]: !prev[field.key] }))}
-                    disabled={!included}
-                    style={[styles.editBtn, isEditing && styles.editBtnActive, !included && styles.editBtnDisabled]}
-                    activeOpacity={0.7}
-                  >
-                    {isEditing ? (
-                      <>
-                        <CheckIcon />
-                        <Text style={styles.editBtnTextActive}>Done</Text>
-                      </>
-                    ) : (
-                      <>
-                        <PencilIcon color={included ? 'rgba(27,48,34,0.7)' : 'rgba(27,48,34,0.3)'} />
-                        <Text style={[styles.editBtnText, !included && { opacity: 0.4 }]}>Edit</Text>
-                      </>
-                    )}
-                  </TouchableOpacity>
-                </View>
-
-                {field.description && (
-                  <Text style={styles.fieldDesc}>{field.description}</Text>
-                )}
-
-                {isEditing ? (
-                  <TextInput
-                    value={value}
-                    onChangeText={(t) => setFormData((prev) => ({ ...prev, [field.key]: t }))}
-                    placeholder={field.placeholder}
-                    autoFocus
-                    style={styles.input}
-                    placeholderTextColor="rgba(27,48,34,0.35)"
-                  />
-                ) : (
-                  <TouchableOpacity
-                    onPress={() => included && setEditingFields((prev) => ({ ...prev, [field.key]: true }))}
-                    disabled={!included}
-                    activeOpacity={0.7}
-                    style={[styles.displayBox, isEmpty && styles.displayBoxEmpty]}
-                  >
-                    {isEmpty ? (
-                      <Text style={styles.placeholderText}>{field.placeholder}</Text>
-                    ) : (
-                      <Text style={styles.displayText}>{value}</Text>
-                    )}
-                  </TouchableOpacity>
-                )}
-
-                <View style={styles.toggleRow}>
-                  <Text style={styles.toggleLabel}>
-                    {included ? 'Included on label' : 'Excluded from label'}
-                  </Text>
-                  <Switch
-                    value={included}
-                    onValueChange={() => setIncludeOnLabel((prev) => ({ ...prev, [field.key]: !prev[field.key] }))}
-                    trackColor={{ false: 'rgba(27,48,34,0.2)', true: '#1B3022' }}
-                    thumbColor="white"
-                  />
-                </View>
-              </View>
-            );
-          })}
-        </ScrollView>
-
-        {/* Footer CTA */}
-        <View style={[styles.footer, { paddingBottom: 24 + insets.bottom }]}>
-          <TouchableOpacity onPress={handleNext} disabled={saving} style={[styles.ctaBtn, saving && styles.ctaBtnDisabled]} activeOpacity={0.85}>
-            {saving ? (
-              <ActivityIndicator color="white" />
-            ) : (
-              <Text style={styles.ctaText}>Next</Text>
-            )}
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerRow}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} activeOpacity={0.7}>
+            <ArrowLeftIcon />
           </TouchableOpacity>
+          <Text style={styles.title}>Confirm Information</Text>
         </View>
+        {medicationData && (
+          <Text style={styles.medName}>{medicationData.medication_name}</Text>
+        )}
+        <Text style={styles.subtitle}>
+          OCR has read your label — tap <Text style={styles.subtitleBold}>Edit</Text> on any field to correct a mistake
+        </Text>
       </View>
-    </KeyboardAvoidingView>
+
+      {/* Scrollable form */}
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={{ paddingBottom: 120 + insets.bottom }}
+        showsVerticalScrollIndicator={false}
+      >
+        {FIELDS.map((field) => {
+          const included = includeOnLabel[field.key];
+          const value = formData[field.key];
+          const isEmpty = !value || value.trim().length === 0;
+
+          return (
+            <View key={field.key} style={[styles.fieldCard, !included && styles.fieldCardDimmed]}>
+              <View style={styles.fieldHeader}>
+                <Text style={styles.fieldLabel}>{field.label}</Text>
+                <TouchableOpacity
+                  onPress={() => included && setActivePickerField(field.key)}
+                  disabled={!included}
+                  style={[styles.editBtn, !included && styles.editBtnDisabled]}
+                  activeOpacity={0.7}
+                >
+                  <PencilIcon color={included ? 'rgba(27,48,34,0.7)' : 'rgba(27,48,34,0.3)'} />
+                  <Text style={[styles.editBtnText, !included && { opacity: 0.4 }]}>Edit</Text>
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity
+                onPress={() => included && setActivePickerField(field.key)}
+                disabled={!included}
+                activeOpacity={0.7}
+                style={[styles.displayBox, isEmpty && styles.displayBoxEmpty]}
+              >
+                {isEmpty ? (
+                  <Text style={styles.placeholderText}>{field.placeholder}</Text>
+                ) : (
+                  <Text style={styles.displayText}>{getFriendlyLabel(value)}</Text>
+                )}
+              </TouchableOpacity>
+
+              <View style={styles.toggleRow}>
+                <Text style={styles.toggleLabel}>
+                  {included ? 'Included on label' : 'Excluded from label'}
+                </Text>
+                <Switch
+                  value={included}
+                  onValueChange={() => setIncludeOnLabel((prev) => ({ ...prev, [field.key]: !prev[field.key] }))}
+                  trackColor={{ false: 'rgba(27,48,34,0.2)', true: '#1B3022' }}
+                  thumbColor="white"
+                />
+              </View>
+            </View>
+          );
+        })}
+      </ScrollView>
+
+      {/* Footer CTA */}
+      <View style={[styles.footer, { paddingBottom: 24 + insets.bottom }]}>
+        <TouchableOpacity onPress={handleNext} disabled={saving} style={[styles.ctaBtn, saving && styles.ctaBtnDisabled]} activeOpacity={0.85}>
+          {saving ? (
+            <ActivityIndicator color="white" />
+          ) : (
+            <Text style={styles.ctaText}>Next</Text>
+          )}
+        </TouchableOpacity>
+      </View>
+
+      {/* Bottom Sheet Picker Modal */}
+      <Modal visible={activePickerField !== null} transparent animationType="slide" onRequestClose={() => setActivePickerField(null)}>
+        <TouchableOpacity style={styles.backdrop} onPress={() => setActivePickerField(null)} activeOpacity={1} />
+        <View style={[styles.sheet, { paddingBottom: 32 + insets.bottom }]}>
+          <View style={styles.sheetHeader}>
+            <Text style={styles.sheetTitle}>{getActiveFieldLabel()}</Text>
+            <TouchableOpacity onPress={() => setActivePickerField(null)} style={styles.sheetClose} activeOpacity={0.7}>
+              <XIcon />
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.sheetHint}>Choose the correct action</Text>
+          <ScrollView style={styles.pickerScroll} showsVerticalScrollIndicator={false}>
+            {getActiveFieldOptions().map((opt) => (
+              <TouchableOpacity
+                key={opt.id}
+                onPress={() => {
+                  setFormData((prev) => ({ ...prev, [activePickerField!]: opt.id }));
+                  setActivePickerField(null);
+                }}
+                style={[
+                  styles.pickerOptionBtn,
+                  formData[activePickerField!] === opt.id && styles.pickerOptionBtnActive,
+                ]}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    styles.pickerOptionText,
+                    formData[activePickerField!] === opt.id && styles.pickerOptionTextActive,
+                  ]}
+                >
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      </Modal>
+    </View>
   );
 }
 
@@ -278,27 +314,9 @@ const styles = StyleSheet.create({
   fieldCardDimmed: { opacity: 0.55 },
   fieldHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
   fieldLabel: { fontSize: 18, fontWeight: '700', color: '#1B3022', fontFamily: 'Georgia', flex: 1 },
-  tagPictogram: { backgroundColor: '#1B3022', paddingHorizontal: 12, paddingVertical: 2, borderRadius: 999 },
-  tagPictogramText: { color: 'white', fontSize: 12, fontWeight: '600' },
-  tagText: { borderWidth: 2, borderColor: '#D37B5C', paddingHorizontal: 12, paddingVertical: 2, borderRadius: 999 },
-  tagTextText: { color: '#D37B5C', fontSize: 12, fontWeight: '600' },
   editBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, backgroundColor: 'rgba(27,48,34,0.1)' },
-  editBtnActive: { backgroundColor: '#1B3022' },
   editBtnDisabled: { opacity: 0.4 },
   editBtnText: { fontSize: 13, fontWeight: '600', color: 'rgba(27,48,34,0.7)' },
-  editBtnTextActive: { fontSize: 13, fontWeight: '600', color: 'white' },
-  fieldDesc: { fontSize: 12, color: 'rgba(27,48,34,0.5)', marginBottom: 12, lineHeight: 18 },
-  input: {
-    backgroundColor: '#F5F2ED',
-    borderWidth: 2,
-    borderColor: '#1B3022',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 20,
-    color: '#1B3022',
-    minHeight: 54,
-  },
   displayBox: { backgroundColor: '#F5F2ED', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, minHeight: 54, justifyContent: 'center' },
   displayBoxEmpty: { backgroundColor: 'rgba(27,48,34,0.05)' },
   placeholderText: { fontSize: 17, color: 'rgba(27,48,34,0.35)', fontStyle: 'italic' },
@@ -309,4 +327,16 @@ const styles = StyleSheet.create({
   ctaBtn: { backgroundColor: '#1B3022', borderRadius: 999, paddingVertical: 20, alignItems: 'center', minHeight: 64 },
   ctaBtnDisabled: { backgroundColor: 'rgba(27,48,34,0.5)' },
   ctaText: { color: 'white', fontSize: 22, fontWeight: '700', fontFamily: 'Georgia' },
+  // Sheet styles
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)' },
+  sheet: { backgroundColor: '#F5F2ED', borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 24, paddingTop: 20, maxHeight: '80%' },
+  sheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  sheetTitle: { fontSize: 22, fontWeight: '700', color: '#1B3022', fontFamily: 'Georgia' },
+  sheetClose: { width: 36, height: 36, backgroundColor: 'rgba(27,48,34,0.1)', borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  sheetHint: { fontSize: 13, color: 'rgba(27,48,34,0.5)', marginBottom: 16 },
+  pickerScroll: { marginVertical: 12 },
+  pickerOptionBtn: { paddingVertical: 16, paddingHorizontal: 20, borderRadius: 12, backgroundColor: 'white', marginBottom: 8, borderWidth: 1, borderColor: 'rgba(27,48,34,0.08)' },
+  pickerOptionBtnActive: { backgroundColor: '#1B3022', borderColor: '#1B3022' },
+  pickerOptionText: { fontSize: 16, fontWeight: '600', color: '#1B3022' },
+  pickerOptionTextActive: { color: 'white' },
 });
