@@ -134,7 +134,7 @@ function CategorySection({ categoryKey, rows }: { categoryKey: string; rows: Pic
 
 export default function PictogramTestScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
-  const [lang, setLang] = useState('none');
+  const [lang, setLang] = useState('ml');
   const [grouped, setGrouped] = useState<Record<string, PictogramRow[]>>({});
   const [loading, setLoading] = useState(true);
 

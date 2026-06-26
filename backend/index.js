@@ -100,7 +100,23 @@ async function parseMedicationLabel(ocrText) {
     Return the data strictly following this JSON schema: ${JSON.stringify(MEDICATION_SCHEMA)}
 
     For each category, you may ONLY choose from these exact pictogram IDs (or null if not mentioned):
-${allowedList}
+    ${allowedList}
+
+    Common label phrasings and their correct pictogram IDs — use these mappings:
+    - "tablet" / "capsule" / "pill" / "by mouth" / "orally" → how_to_take.swallow_whole
+    - "oral solution" / "liquid" / "syrup" / "suspension" / "elixir" / "drink" → how_to_take.with_water
+    - "with food" / "with meals" → how_to_take.with_food
+    - "on empty stomach" / "before meals" → how_to_take.empty_stomach
+    - "with water" / "with a full glass of water" → how_to_take.with_water
+    - "dissolve" / "effervescent" / "dissolve in water" → how_to_take.dissolve_in_water
+    - "30 min before food" / "half hour before eating" → how_to_take.take_30_min_before_food
+    - "30 min after food" / "half hour after eating" → how_to_take.take_30_min_after_food
+    - "may cause drowsiness" / "causes sleepiness" → side_effects.drowsiness
+    - "may cause dizziness" → side_effects.dizziness
+    - "avoid alcohol" / "no alcohol" → precautions.no_alcohol
+    - "once a day" / "once daily" → time_of_day.once_daily
+    - "twice a day" / "twice daily" → time_of_day.twice_daily
+    - "three times a day" / "thrice daily" → time_of_day.thrice_daily
 
     Instructions:
     1. The 'raw_ocr_reference' field MUST be the exact OCR text provided below, copied verbatim.
@@ -249,6 +265,7 @@ app.post('/api/ocr/extract', upload.single('file'), async (req, res) => {
     let validation;
     for (let attempt = 1; attempt <= 2; attempt++) {
       const rawLlm = await parseMedicationLabel(extractedText);
+      console.log('LLM raw response:', rawLlm); // ADD THIS LINE
       validation = validateLlmOutput(rawLlm);
       if (validation.valid) break;
       console.warn(`LLM validation failed (attempt ${attempt}):`, validation.errors);
@@ -271,7 +288,7 @@ app.post('/api/ocr/extract', upload.single('file'), async (req, res) => {
 });
 
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, async () => {
+app.listen(PORT, '0.0.0.0', async () => {
   await loadAllowedIds();
   console.log(`GoldLabel Backend running on http://localhost:${PORT}`);
   console.log(`Gemini API key: ${process.env.GEMINI_API_KEY ? '✓ set' : '⚠ GEMINI_API_KEY not set'}`);
