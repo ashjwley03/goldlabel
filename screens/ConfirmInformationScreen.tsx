@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,12 +11,14 @@ import {
   Platform,
   Alert,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import { supabase } from '../utils/supabase';
-import { GeminiResponse, CategoryData } from '../types';
+import { GeminiResponse, ResolvedPictogram } from '../types';
 
+// ─── Field definitions ────────────────────────────────────────────────────────
 type FieldType = 'pictogram' | 'text';
 
 interface Field {
@@ -24,43 +26,84 @@ interface Field {
   label: string;
   placeholder: string;
   type: FieldType;
+  // Which pictogram_categories key does this field map to?
+  categoryKey?: keyof GeminiResponse['pictogram_categories'];
   description?: string;
 }
 
 const FIELDS: Field[] = [
-  { key: 'timeOfDay', label: 'Time of Day', placeholder: 'e.g. Morning', type: 'pictogram' },
-  { key: 'howLong', label: 'How long to take for', placeholder: 'e.g. 2 weeks', type: 'text' },
-  { key: 'dosage', label: 'Dosage', placeholder: 'e.g. 2 tablets', type: 'pictogram' },
-  { key: 'howToTake', label: 'How to take med', placeholder: 'e.g. With food', type: 'pictogram' },
-  { key: 'sideEffects', label: 'Side effects', placeholder: 'e.g. Drowsiness', type: 'pictogram' },
-  { key: 'others', label: 'Others', placeholder: 'Any other meaningful notes…', type: 'text', description: "Any extracted text that doesn't fall into the 5 categories above but is still meaningful." },
+  { key: 'timeOfDay',   label: 'Time of Day',         placeholder: 'e.g. Morning',           type: 'pictogram', categoryKey: 'time_of_day' },
+  { key: 'howLong',     label: 'How long to take for', placeholder: 'e.g. 2 weeks',           type: 'text',      categoryKey: 'duration' },
+  { key: 'dosage',      label: 'Dosage',               placeholder: 'e.g. 2 tablets',         type: 'pictogram', categoryKey: 'dosage' },
+  { key: 'howToTake',   label: 'How to take med',      placeholder: 'e.g. With food',         type: 'pictogram', categoryKey: 'how_to_take' },
+  { key: 'sideEffects', label: 'Side effects',         placeholder: 'e.g. Drowsiness',        type: 'pictogram', categoryKey: 'side_effects' },
+  { key: 'precautions', label: 'Precautions',          placeholder: 'e.g. Avoid alcohol',     type: 'pictogram', categoryKey: 'precautions' },
+  { key: 'others',      label: 'Others',               placeholder: 'Any other notes…',       type: 'text',
+    description: "Any extracted text that doesn't fall into the categories above but is still meaningful." },
 ];
 
-function getSelectedLabel(category: CategoryData): string {
-  if (!category.selected_pictogram_id) return '';
-  const option = category.suggested_options.find(
-    (o) => o.pictogram_id === category.selected_pictogram_id
-  );
-  return option?.label || category.selected_pictogram_id;
+const BUCKET = 'pictograms';
+
+// ─── Pictogram lookup ─────────────────────────────────────────────────────────
+// Takes the flat pictogram_categories from the backend + a language code,
+// queries Supabase for the matching asset rows, and returns resolved image URLs.
+async function lookupPictograms(
+  categories: GeminiResponse['pictogram_categories'],
+  language: string
+): Promise<Record<string, ResolvedPictogram>> {
+  // Collect all non-null pictogram IDs
+  const ids = Object.values(categories).filter((id): id is string => id !== null);
+  if (ids.length === 0) return {};
+
+  // Single query — fetch all matching rows for this language
+  const { data, error } = await supabase
+    .from('pictogram_assets')
+    .select('pictogram_id, category_key, asset_path, label, variant_id')
+    .eq('language_code', language)
+    .eq('is_default', true)
+    .in('pictogram_id', ids);
+
+  if (error || !data) {
+    console.error('Pictogram lookup failed:', error);
+    return {};
+  }
+
+  // Build a map of { pictogram_id → ResolvedPictogram }
+  const resolved: Record<string, ResolvedPictogram> = {};
+  for (const row of data) {
+    const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(row.asset_path);
+    resolved[row.pictogram_id] = {
+      category: row.category_key,
+      pictogram_id: row.pictogram_id,
+      label: row.label,
+      imageUrl: urlData?.publicUrl ?? '',
+    };
+  }
+  return resolved;
 }
 
-const emptyCategory: CategoryData = { suggested_options: [], selected_pictogram_id: null };
+// ─── Build initial text values for each field ─────────────────────────────────
+function buildDefaults(
+  medicationData?: GeminiResponse,
+  resolved?: Record<string, ResolvedPictogram>
+): Record<string, string> {
+  if (!medicationData) return Object.fromEntries(FIELDS.map((f) => [f.key, '']));
 
-function buildDefaults(medicationData?: GeminiResponse): Record<string, string> {
-  if (!medicationData) {
-    return Object.fromEntries(FIELDS.map((f) => [f.key, '']));
-  }
-  const cats = medicationData.pictogram_categories ?? {};
+  const cats = medicationData.pictogram_categories;
+  const label = (id: string | null) => (id && resolved?.[id]?.label) ? resolved[id].label : '';
+
   return {
-    timeOfDay: getSelectedLabel(cats.time_of_day ?? emptyCategory),
-    howLong: '',
-    dosage: getSelectedLabel(cats.dosage ?? emptyCategory),
-    howToTake: getSelectedLabel(cats.special_instructions ?? emptyCategory),
-    sideEffects: '',
+    timeOfDay:   label(cats.time_of_day),
+    howLong:     label(cats.duration),
+    dosage:      label(cats.dosage),
+    howToTake:   label(cats.how_to_take),
+    sideEffects: label(cats.side_effects),
+    precautions: label(cats.precautions),
     others: '',
   };
 }
 
+// ─── Icons ────────────────────────────────────────────────────────────────────
 function ArrowLeftIcon() {
   return (
     <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
@@ -101,17 +144,45 @@ function TypeTag({ type }: { type: FieldType }) {
   );
 }
 
+// ─── Main screen ──────────────────────────────────────────────────────────────
 export default function ConfirmInformationScreen({ navigation, route }: any) {
   const insets = useSafeAreaInsets();
-  const { medicationData } = route.params as { medicationData?: GeminiResponse } || {};
+  const { medicationData } = (route.params as { medicationData?: GeminiResponse }) || {};
 
-  const [formData, setFormData] = useState<Record<string, string>>(buildDefaults(medicationData));
+  // Resolved pictograms: pictogram_id → { label, imageUrl }
+  const [resolved, setResolved] = useState<Record<string, ResolvedPictogram>>({});
+  const [loadingPictograms, setLoadingPictograms] = useState(true);
+
+  const [formData, setFormData] = useState<Record<string, string>>(
+    Object.fromEntries(FIELDS.map((f) => [f.key, '']))
+  );
   const [includeOnLabel, setIncludeOnLabel] = useState<Record<string, boolean>>(
     Object.fromEntries(FIELDS.map((f) => [f.key, true]))
   );
   const [editingFields, setEditingFields] = useState<Record<string, boolean>>({});
   const [saving, setSaving] = useState(false);
 
+  // ── Pictogram lookup on mount ─────────────────────────────────────────────
+  // As soon as this screen loads, look up all pictogram images from Supabase.
+  // Uses the language the backend detected from the OCR text.
+  useEffect(() => {
+    if (!medicationData) {
+      setLoadingPictograms(false);
+      return;
+    }
+
+    const language = medicationData.language || 'none';
+
+    lookupPictograms(medicationData.pictogram_categories, language)
+      .then((resolvedMap) => {
+        setResolved(resolvedMap);
+        // Now that we have labels, populate the form
+        setFormData(buildDefaults(medicationData, resolvedMap));
+      })
+      .finally(() => setLoadingPictograms(false));
+  }, [medicationData]);
+
+  // ── Save to Supabase and go to next screen ────────────────────────────────
   const handleNext = async () => {
     setSaving(true);
     try {
@@ -149,6 +220,16 @@ export default function ConfirmInformationScreen({ navigation, route }: any) {
     }
   };
 
+  // ── Show a loading spinner while pictograms are being fetched ─────────────
+  if (loadingPictograms) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#1B3022" />
+        <Text style={styles.loadingText}>Looking up pictograms…</Text>
+      </View>
+    );
+  }
+
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -162,6 +243,11 @@ export default function ConfirmInformationScreen({ navigation, route }: any) {
           </View>
           {medicationData && (
             <Text style={styles.medName}>{medicationData.medication_name}</Text>
+          )}
+          {medicationData?.requires_review && (
+            <View style={styles.reviewBanner}>
+              <Text style={styles.reviewBannerText}>⚠️ Low confidence — please review carefully</Text>
+            </View>
           )}
           <Text style={styles.subtitle}>
             OCR has read your label — tap <Text style={styles.subtitleBold}>Edit</Text> on any field to correct a mistake
@@ -179,6 +265,12 @@ export default function ConfirmInformationScreen({ navigation, route }: any) {
             const isEditing = editingFields[field.key] ?? false;
             const value = formData[field.key];
             const isEmpty = !value || value.trim().length === 0;
+
+            // For pictogram fields, find the resolved pictogram image
+            const pictogramId = field.categoryKey
+              ? medicationData?.pictogram_categories[field.categoryKey]
+              : null;
+            const pictogram = pictogramId ? resolved[pictogramId] : null;
 
             return (
               <View key={field.key} style={[styles.fieldCard, !included && styles.fieldCardDimmed]}>
@@ -207,6 +299,18 @@ export default function ConfirmInformationScreen({ navigation, route }: any) {
 
                 {field.description && (
                   <Text style={styles.fieldDesc}>{field.description}</Text>
+                )}
+
+                {/* Pictogram image — shown for pictogram fields when not editing */}
+                {field.type === 'pictogram' && !isEditing && pictogram && (
+                  <View style={styles.pictogramRow}>
+                    <Image
+                      source={{ uri: pictogram.imageUrl }}
+                      style={styles.pictogramImage}
+                      resizeMode="contain"
+                    />
+                    <Text style={styles.pictogramLabel}>{pictogram.label}</Text>
+                  </View>
                 )}
 
                 {isEditing ? (
@@ -266,11 +370,15 @@ export default function ConfirmInformationScreen({ navigation, route }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F5F2ED' },
+  loadingContainer: { flex: 1, backgroundColor: '#F5F2ED', alignItems: 'center', justifyContent: 'center', gap: 16 },
+  loadingText: { fontSize: 16, color: 'rgba(27,48,34,0.6)' },
   header: { paddingHorizontal: 24, paddingTop: 16, paddingBottom: 20 },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 4 },
   backBtn: { width: 44, height: 44, backgroundColor: 'rgba(255,255,255,0.8)', borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 28, fontWeight: '700', color: '#1B3022', fontFamily: 'Georgia', flex: 1 },
   medName: { fontSize: 20, fontWeight: '700', color: '#D37B5C', marginLeft: 60, marginBottom: 2 },
+  reviewBanner: { backgroundColor: '#FFF3CD', borderRadius: 10, paddingHorizontal: 16, paddingVertical: 8, marginLeft: 60, marginBottom: 8 },
+  reviewBannerText: { fontSize: 13, color: '#856404', fontWeight: '600' },
   subtitle: { fontSize: 15, color: 'rgba(27,48,34,0.55)', marginLeft: 60 },
   subtitleBold: { fontWeight: '600', color: 'rgba(27,48,34,0.7)' },
   scroll: { flex: 1, paddingHorizontal: 24 },
@@ -287,18 +395,11 @@ const styles = StyleSheet.create({
   editBtnDisabled: { opacity: 0.4 },
   editBtnText: { fontSize: 13, fontWeight: '600', color: 'rgba(27,48,34,0.7)' },
   editBtnTextActive: { fontSize: 13, fontWeight: '600', color: 'white' },
+  pictogramRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12, backgroundColor: '#F5F2ED', borderRadius: 12, padding: 12 },
+  pictogramImage: { width: 64, height: 64, borderRadius: 8 },
+  pictogramLabel: { fontSize: 15, fontWeight: '600', color: '#1B3022', flex: 1 },
   fieldDesc: { fontSize: 12, color: 'rgba(27,48,34,0.5)', marginBottom: 12, lineHeight: 18 },
-  input: {
-    backgroundColor: '#F5F2ED',
-    borderWidth: 2,
-    borderColor: '#1B3022',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 20,
-    color: '#1B3022',
-    minHeight: 54,
-  },
+  input: { backgroundColor: '#F5F2ED', borderWidth: 2, borderColor: '#1B3022', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, fontSize: 20, color: '#1B3022', minHeight: 54 },
   displayBox: { backgroundColor: '#F5F2ED', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, minHeight: 54, justifyContent: 'center' },
   displayBoxEmpty: { backgroundColor: 'rgba(27,48,34,0.05)' },
   placeholderText: { fontSize: 17, color: 'rgba(27,48,34,0.35)', fontStyle: 'italic' },

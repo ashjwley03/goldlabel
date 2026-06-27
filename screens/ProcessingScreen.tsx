@@ -4,45 +4,6 @@ import { GeminiResponse } from '../types';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
-const MEDICATION_SCHEMA = {
-  type: 'object',
-  required: ['raw_text', 'medication_name', 'pictogram_categories'],
-  properties: {
-    raw_text: { type: 'string' },
-    medication_name: { type: 'string' },
-    pictogram_categories: {
-      type: 'object',
-      required: ['time_of_day', 'dosage', 'special_instructions'],
-      properties: {
-        time_of_day: {
-          type: 'object',
-          required: ['suggested_options', 'selected_pictogram_id'],
-          properties: {
-            suggested_options: { type: 'array', items: { type: 'object', required: ['pictogram_id', 'label'], properties: { pictogram_id: { type: 'string' }, label: { type: 'string' } } } },
-            selected_pictogram_id: { type: ['string', 'null'] },
-          },
-        },
-        dosage: {
-          type: 'object',
-          required: ['suggested_options', 'selected_pictogram_id'],
-          properties: {
-            suggested_options: { type: 'array', items: { type: 'object', required: ['pictogram_id', 'label'], properties: { pictogram_id: { type: 'string' }, label: { type: 'string' } } } },
-            selected_pictogram_id: { type: ['string', 'null'] },
-          },
-        },
-        special_instructions: {
-          type: 'object',
-          required: ['suggested_options', 'selected_pictogram_id'],
-          properties: {
-            suggested_options: { type: 'array', items: { type: 'object', required: ['pictogram_id', 'label'], properties: { pictogram_id: { type: 'string' }, label: { type: 'string' } } } },
-            selected_pictogram_id: { type: ['string', 'null'] },
-          },
-        },
-      },
-    },
-  },
-};
-
 function SparklesIcon() {
   return (
     <Text style={{ fontSize: 56, textAlign: 'center' }}>✨</Text>
