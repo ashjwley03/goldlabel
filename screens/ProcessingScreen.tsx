@@ -6,41 +6,24 @@ const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
 const MEDICATION_SCHEMA = {
   type: 'object',
-  required: ['raw_text', 'medication_name', 'pictogram_categories'],
+  required: ['raw_ocr_reference', 'medication_name', 'language', 'pictogram_categories'],
   properties: {
-    raw_text: { type: 'string' },
+    raw_ocr_reference: { type: 'string' },
     medication_name: { type: 'string' },
+    language: { type: 'string', enum: ['none', 'en', 'bn', 'hi', 'kn', 'ml', 'te', 'my', 'th', 'vi', 'zh', 'ms', 'ta'] },
     pictogram_categories: {
       type: 'object',
-      required: ['time_of_day', 'dosage', 'special_instructions'],
+      required: ['how_to_take', 'side_effects', 'duration', 'dosage', 'time_of_day', 'precautions'],
       properties: {
-        time_of_day: {
-          type: 'object',
-          required: ['suggested_options', 'selected_pictogram_id'],
-          properties: {
-            suggested_options: { type: 'array', items: { type: 'object', required: ['pictogram_id', 'label'], properties: { pictogram_id: { type: 'string' }, label: { type: 'string' } } } },
-            selected_pictogram_id: { type: ['string', 'null'] },
-          },
-        },
-        dosage: {
-          type: 'object',
-          required: ['suggested_options', 'selected_pictogram_id'],
-          properties: {
-            suggested_options: { type: 'array', items: { type: 'object', required: ['pictogram_id', 'label'], properties: { pictogram_id: { type: 'string' }, label: { type: 'string' } } } },
-            selected_pictogram_id: { type: ['string', 'null'] },
-          },
-        },
-        special_instructions: {
-          type: 'object',
-          required: ['suggested_options', 'selected_pictogram_id'],
-          properties: {
-            suggested_options: { type: 'array', items: { type: 'object', required: ['pictogram_id', 'label'], properties: { pictogram_id: { type: 'string' }, label: { type: 'string' } } } },
-            selected_pictogram_id: { type: ['string', 'null'] },
-          },
-        },
-      },
-    },
-  },
+        how_to_take: { type: ['string', 'null'] },
+        side_effects: { type: ['string', 'null'] },
+        duration: { type: ['string', 'null'] },
+        dosage: { type: ['string', 'null'] },
+        time_of_day: { type: ['string', 'null'] },
+        precautions: { type: ['string', 'null'] }
+      }
+    }
+  }
 };
 
 function SparklesIcon() {
@@ -128,7 +111,11 @@ export default function ProcessingScreen({ navigation, route }: any) {
       }
 
       const data: GeminiResponse = backendJson;
-      navigation.replace('ConfirmInformation', { medicationData: data });
+      navigation.replace('ConfirmInformation', {
+        medicationData: data,
+        imageUri,
+        imageBase64
+      });
     } catch (err: any) {
       Alert.alert(
         'Processing Failed',

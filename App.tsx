@@ -14,6 +14,7 @@ import PrintPreviewScreen from './screens/PrintPreviewScreen';
 import PictographViewScreen from './screens/PictographViewScreen';
 import HistoryScreen from './screens/HistoryScreen';
 import FeedbackScreen from './screens/FeedbackScreen';
+import ResultScreen from './screens/ResultScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -36,6 +37,7 @@ export default function App() {
           <Stack.Screen name="PictographView" component={PictographViewScreen} />
           <Stack.Screen name="History" component={HistoryScreen} />
           <Stack.Screen name="Feedback" component={FeedbackScreen} />
+          <Stack.Screen name="ResultScreen" component={ResultScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>

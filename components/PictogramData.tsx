@@ -30,11 +30,23 @@ export function getIcon(
   return variant.icon(size);
 }
 
+// Helper to build a generic placeholder SVG
+const makePlaceholderVariant = (label: string) => ({
+  id: 'v0',
+  label,
+  icon: (s: number) => (
+    <Svg width={s} height={s} viewBox="0 0 120 120">
+      <Circle cx="60" cy="60" r="40" fill="#E2E8F0" stroke="#94A3B8" strokeWidth="3" />
+      <Path d="M45 45 L75 75 M75 45 L45 75" stroke="#94A3B8" strokeWidth="4" strokeLinecap="round" />
+    </Svg>
+  )
+});
+
 // ─── TIME OF DAY ─────────────────────────────────────────────────────────────
 
 export const TIME_OPTIONS: PictogramOption[] = [
   {
-    id: 'morning',
+    id: 'time_of_day_morning',
     label: 'Morning',
     variants: [
       {
@@ -79,7 +91,7 @@ export const TIME_OPTIONS: PictogramOption[] = [
     ],
   },
   {
-    id: 'noon',
+    id: 'time_of_day_noon',
     label: 'Noon',
     variants: [
       {
@@ -127,7 +139,7 @@ export const TIME_OPTIONS: PictogramOption[] = [
     ],
   },
   {
-    id: 'night',
+    id: 'time_of_day_night',
     label: 'Night',
     variants: [
       {
@@ -177,7 +189,7 @@ export const TIME_OPTIONS: PictogramOption[] = [
     ],
   },
   {
-    id: 'before-bed',
+    id: 'time_of_day_before_bed',
     label: 'Before Bed',
     variants: [
       {
@@ -223,13 +235,22 @@ export const TIME_OPTIONS: PictogramOption[] = [
       },
     ],
   },
+  { id: 'time_of_day_once_daily', label: 'Once Daily', variants: [makePlaceholderVariant('Once Daily')] },
+  { id: 'time_of_day_twice_daily', label: 'Twice Daily', variants: [makePlaceholderVariant('Twice Daily')] },
+  { id: 'time_of_day_thrice_daily', label: 'Thrice Daily', variants: [makePlaceholderVariant('Thrice Daily')] },
+  { id: 'time_of_day_upon_waking_up', label: 'Upon Waking Up', variants: [makePlaceholderVariant('Upon Waking Up')] },
+  { id: 'time_of_day_every_4_hours', label: 'Every 4 Hours', variants: [makePlaceholderVariant('Every 4 Hours')] },
+  { id: 'time_of_day_every_8_hours', label: 'Every 8 Hours', variants: [makePlaceholderVariant('Every 8 Hours')] },
+  { id: 'time_of_day_with_breakfast', label: 'With Breakfast', variants: [makePlaceholderVariant('With Breakfast')] },
+  { id: 'time_of_day_with_lunch', label: 'With Lunch', variants: [makePlaceholderVariant('With Lunch')] },
+  { id: 'time_of_day_with_dinner', label: 'With Dinner', variants: [makePlaceholderVariant('With Dinner')] },
 ];
 
 // ─── HOW TO TAKE ─────────────────────────────────────────────────────────────
 
 export const HOW_TO_TAKE_OPTIONS: PictogramOption[] = [
   {
-    id: 'with-food',
+    id: 'how_to_take_take_with_food',
     label: 'With Food',
     variants: [
       {
@@ -276,7 +297,7 @@ export const HOW_TO_TAKE_OPTIONS: PictogramOption[] = [
     ],
   },
   {
-    id: 'empty-stomach',
+    id: 'how_to_take_take_on_empty_stomach',
     label: 'Empty Stomach',
     variants: [
       {
@@ -325,12 +346,12 @@ export const HOW_TO_TAKE_OPTIONS: PictogramOption[] = [
     ],
   },
   {
-    id: 'crush',
-    label: 'Crush Pill',
+    id: 'how_to_take_swallow_whole',
+    label: 'Swallow Whole',
     variants: [
       {
         id: 'v0',
-        label: 'Crushed pill',
+        label: 'Swallow whole pill',
         icon: (s) => (
           <Svg key="cr-v0" width={s} height={s} viewBox="0 0 120 120">
             <Ellipse cx="60" cy="55" rx="30" ry="15" fill="#D37B5C" stroke="#B85A3C" strokeWidth="4" />
@@ -339,36 +360,11 @@ export const HOW_TO_TAKE_OPTIONS: PictogramOption[] = [
             <Path d="M35 85 L85 85" stroke="#1B3022" strokeWidth="3" strokeLinecap="round" />
           </Svg>
         ),
-      },
-      {
-        id: 'v1',
-        label: 'Mortar & pestle',
-        icon: (s) => (
-          <Svg key="cr-v1" width={s} height={s} viewBox="0 0 120 120">
-            <Path d="M28 78 Q28 105 60 105 Q92 105 92 78 Z" fill="#D37B5C" stroke="#B85A3C" strokeWidth="4" />
-            <Path d="M23 78 L97 78" stroke="#B85A3C" strokeWidth="4" strokeLinecap="round" />
-            <Path d="M72 35 L88 20" stroke="#B85A3C" strokeWidth="5" strokeLinecap="round" />
-            <Ellipse cx="64" cy="42" rx="16" ry="8" fill="#D37B5C" stroke="#B85A3C" strokeWidth="3" />
-            <Ellipse cx="52" cy="72" rx="10" ry="3" fill="#FDB462" fillOpacity="0.6" />
-          </Svg>
-        ),
-      },
-      {
-        id: 'v2',
-        label: 'Breaking pill',
-        icon: (s) => (
-          <Svg key="cr-v2" width={s} height={s} viewBox="0 0 120 120">
-            <Path d="M28 58 Q28 46 40 43 L57 41 Q63 41 65 52 L67 63 Q69 74 62 76 L45 78 Q33 79 28 67 Z" fill="#D37B5C" stroke="#B85A3C" strokeWidth="3" />
-            <Path d="M67 52 Q70 41 80 41 L87 41 Q97 41 97 56 L97 66 Q97 78 87 78 L77 78 Q67 78 64 67 Z" fill="#FFCCBC" stroke="#B85A3C" strokeWidth="3" />
-            <Path d="M62 44 L69 82" stroke="#B85A3C" strokeWidth="4" strokeLinecap="round" strokeDasharray="4 3" />
-            <Path d="M42 33 L48 18 M72 28 L76 14 M88 36 L96 24" stroke="#B85A3C" strokeWidth="3" strokeLinecap="round" />
-          </Svg>
-        ),
-      },
+      }
     ],
   },
   {
-    id: 'with-water',
+    id: 'how_to_take_take_with_water',
     label: 'With Water',
     variants: [
       {
@@ -408,14 +404,17 @@ export const HOW_TO_TAKE_OPTIONS: PictogramOption[] = [
       },
     ],
   },
+  { id: 'how_to_take_dissolve_in_water', label: 'Dissolve in Water', variants: [makePlaceholderVariant('Dissolve in Water')] },
+  { id: 'how_to_take_take_30min_before_food', label: 'Take 30 Min Before Food', variants: [makePlaceholderVariant('30 Min Before Food')] },
+  { id: 'how_to_take_take_30min_after_food', label: 'Take 30 Min After Food', variants: [makePlaceholderVariant('30 Min After Food')] },
 ];
 
 // ─── SIDE EFFECTS ─────────────────────────────────────────────────────────────
 
 export const SIDE_EFFECT_OPTIONS: PictogramOption[] = [
   {
-    id: 'drowsiness',
-    label: 'Drowsiness',
+    id: 'side_effects_may_cause_drowsiness',
+    label: 'May Cause Drowsiness',
     variants: [
       {
         id: 'v0',
@@ -461,8 +460,8 @@ export const SIDE_EFFECT_OPTIONS: PictogramOption[] = [
     ],
   },
   {
-    id: 'dizzy',
-    label: 'Dizziness',
+    id: 'side_effects_may_cause_dizziness',
+    label: 'May Cause Dizziness',
     variants: [
       {
         id: 'v0',
@@ -477,38 +476,27 @@ export const SIDE_EFFECT_OPTIONS: PictogramOption[] = [
           </Svg>
         ),
       },
+    ],
+  },
+  {
+    id: 'side_effects_avoid_driving',
+    label: 'Avoid Driving',
+    variants: [
       {
-        id: 'v1',
-        label: 'Spiral eyes',
+        id: 'v0',
+        label: 'Checkmark placeholder',
         icon: (s) => (
-          <Svg key="dz-v1" width={s} height={s} viewBox="0 0 120 120">
-            <Circle cx="60" cy="60" r="35" fill="#FFE082" stroke="#FFA726" strokeWidth="4" />
-            <Path d="M48 54 Q51 51 54 54 Q57 57 54 60 Q51 63 46 60 Q42 57 44 52 Q46 47 52 47 Q58 47 60 53" stroke="#1B3022" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-            <Path d="M72 54 Q75 51 78 54 Q81 57 78 60 Q75 63 70 60 Q66 57 68 52 Q70 47 76 47 Q82 47 84 53" stroke="#1B3022" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-            <Path d="M48 78 Q60 72 72 78" stroke="#1B3022" strokeWidth="4" strokeLinecap="round" />
-          </Svg>
-        ),
-      },
-      {
-        id: 'v2',
-        label: 'Stars orbiting',
-        icon: (s) => (
-          <Svg key="dz-v2" width={s} height={s} viewBox="0 0 120 120">
-            <Circle cx="60" cy="68" r="28" fill="#FFE082" stroke="#FFA726" strokeWidth="4" />
-            <Circle cx="48" cy="62" r="4" fill="#1B3022" />
-            <Circle cx="72" cy="62" r="4" fill="#1B3022" />
-            <Path d="M48 80 Q60 74 72 80" stroke="#1B3022" strokeWidth="3" strokeLinecap="round" />
-            <Path d="M32 28 L34 22 L36 28 L42 28 L37 32 L39 38 L34 34 L29 38 L31 32 L26 28 Z" fill="#FFA726" />
-            <Path d="M78 18 L80 13 L82 18 L87 18 L83 22 L85 27 L80 24 L75 27 L77 22 L73 18 Z" fill="#FFA726" />
-            <Path d="M92 42 L94 37 L96 42 L101 42 L97 46 L99 51 L94 48 L89 51 L91 46 L87 42 Z" fill="#FDB462" />
+          <Svg key="no-v0" width={s} height={s} viewBox="0 0 120 120">
+            <Circle cx="60" cy="60" r="35" stroke="#1B3022" strokeWidth="5" fill="none" />
+            <Path d="M44 60 L55 71 L76 49" stroke="#1B3022" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
           </Svg>
         ),
       },
     ],
   },
   {
-    id: 'nausea',
-    label: 'Nausea',
+    id: 'side_effects_may_cause_nausea',
+    label: 'May Cause Nausea',
     variants: [
       {
         id: 'v0',
@@ -522,72 +510,114 @@ export const SIDE_EFFECT_OPTIONS: PictogramOption[] = [
           </Svg>
         ),
       },
-      {
-        id: 'v1',
-        label: 'Wave lines',
-        icon: (s) => (
-          <Svg key="na-v1" width={s} height={s} viewBox="0 0 120 120">
-            <Circle cx="60" cy="60" r="35" fill="#A5D6A7" stroke="#66BB6A" strokeWidth="4" />
-            <Path d="M36 50 Q42 44 48 50 Q54 56 60 50 Q66 44 72 50 Q78 56 84 50" stroke="#2D5F3F" strokeWidth="3.5" strokeLinecap="round" />
-            <Path d="M36 63 Q42 57 48 63 Q54 69 60 63 Q66 57 72 63 Q78 69 84 63" stroke="#2D5F3F" strokeWidth="3.5" strokeLinecap="round" />
-            <Path d="M36 76 Q42 70 48 76 Q54 82 60 76 Q66 70 72 76 Q78 82 84 76" stroke="#2D5F3F" strokeWidth="3" strokeLinecap="round" opacity="0.5" />
-          </Svg>
-        ),
-      },
-      {
-        id: 'v2',
-        label: 'Queasy face',
-        icon: (s) => (
-          <Svg key="na-v2" width={s} height={s} viewBox="0 0 120 120">
-            <Circle cx="60" cy="60" r="35" fill="#A5D6A7" stroke="#66BB6A" strokeWidth="4" />
-            <Circle cx="48" cy="53" r="4" fill="#2D5F3F" />
-            <Circle cx="72" cy="53" r="4" fill="#2D5F3F" />
-            <Path d="M45 74 Q52 70 60 74 Q68 78 75 74" stroke="#2D5F3F" strokeWidth="4" strokeLinecap="round" />
-            <Path d="M50 40 Q60 32 70 40" stroke="#66BB6A" strokeWidth="3" strokeLinecap="round" />
-            <Circle cx="48" cy="36" r="3" fill="#66BB6A" fillOpacity="0.7" />
-            <Circle cx="72" cy="36" r="3" fill="#66BB6A" fillOpacity="0.7" />
-          </Svg>
-        ),
-      },
     ],
   },
-  {
-    id: 'none',
-    label: 'No Major Effects',
-    variants: [
-      {
-        id: 'v0',
-        label: 'Checkmark',
-        icon: (s) => (
-          <Svg key="no-v0" width={s} height={s} viewBox="0 0 120 120">
-            <Circle cx="60" cy="60" r="35" stroke="#1B3022" strokeWidth="5" fill="none" />
-            <Path d="M44 60 L55 71 L76 49" stroke="#1B3022" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
-          </Svg>
-        ),
-      },
-      {
-        id: 'v1',
-        label: 'Thumbs up',
-        icon: (s) => (
-          <Svg key="no-v1" width={s} height={s} viewBox="0 0 120 120">
-            <Circle cx="60" cy="60" r="35" fill="#A5D6A7" fillOpacity="0.4" stroke="#1B3022" strokeWidth="3" />
-            <Path d="M52 74 L52 56 Q52 49 58 43 L64 33 Q66 29 70 31 Q73 33 72 39 L69 51 L80 51 Q86 51 86 57 L85 71 Q84 77 78 77 L55 77 Q52 77 52 74 Z" fill="#1B3022" />
-            <Rect x="40" y="54" width="12" height="24" rx="4" fill="#1B3022" />
-          </Svg>
-        ),
-      },
-      {
-        id: 'v2',
-        label: 'Smiley',
-        icon: (s) => (
-          <Svg key="no-v2" width={s} height={s} viewBox="0 0 120 120">
-            <Circle cx="60" cy="60" r="35" fill="#FFF9C4" stroke="#1B3022" strokeWidth="4" />
-            <Circle cx="48" cy="52" r="4" fill="#1B3022" />
-            <Circle cx="72" cy="52" r="4" fill="#1B3022" />
-            <Path d="M44 70 Q60 84 76 70" stroke="#1B3022" strokeWidth="4" strokeLinecap="round" />
-          </Svg>
-        ),
-      },
-    ],
-  },
+  { id: 'side_effects_may_cause_headache', label: 'May Cause Headache', variants: [makePlaceholderVariant('May Cause Headache')] },
+  { id: 'side_effects_may_cause_blurred_vision', label: 'May Cause Blurred Vision', variants: [makePlaceholderVariant('May Cause Blurred Vision')] },
+  { id: 'side_effects_may_cause_tremors', label: 'May Cause Tremors', variants: [makePlaceholderVariant('May Cause Tremors')] },
+  { id: 'side_effects_may_cause_vomiting', label: 'May Cause Vomiting', variants: [makePlaceholderVariant('May Cause Vomiting')] },
+  { id: 'side_effects_may_cause_diarrhea', label: 'May Cause Diarrhea', variants: [makePlaceholderVariant('May Cause Diarrhea')] },
+  { id: 'side_effects_may_cause_constipation', label: 'May Cause Constipation', variants: [makePlaceholderVariant('May Cause Constipation')] },
+  { id: 'side_effects_may_cause_dry_mouth', label: 'May Cause Dry Mouth', variants: [makePlaceholderVariant('May Cause Dry Mouth')] },
+  { id: 'side_effects_may_cause_light_sensitivity', label: 'May Cause Light Sensitivity', variants: [makePlaceholderVariant('May Cause Light Sensitivity')] },
+  { id: 'side_effects_may_cause_allergic_reaction', label: 'May Cause Allergic Reaction', variants: [makePlaceholderVariant('May Cause Allergic Reaction')] },
+  { id: 'side_effects_may_cause_muscle_weakness', label: 'May Cause Muscle Weakness', variants: [makePlaceholderVariant('May Cause Muscle Weakness')] },
+  { id: 'side_effects_may_cause_fast_heartbeat', label: 'May Cause Fast Heartbeat', variants: [makePlaceholderVariant('May Cause Fast Heartbeat')] },
+  { id: 'side_effects_may_cause_fever', label: 'May Cause Fever', variants: [makePlaceholderVariant('May Cause Fever')] },
+  { id: 'side_effects_increased_fall_risk', label: 'Increased Fall Risk', variants: [makePlaceholderVariant('Increased Fall Risk')] },
+];
+
+// ─── DURATION ────────────────────────────────────────────────────────────────
+
+export const DURATION_OPTIONS: PictogramOption[] = [
+  { id: 'duration_1_day', label: 'Take for 1 Day', variants: [makePlaceholderVariant('Take for 1 Day')] },
+  { id: 'duration_2_days', label: 'Take for 2 Days', variants: [makePlaceholderVariant('Take for 2 Days')] },
+  { id: 'duration_3_days', label: 'Take for 3 Days', variants: [makePlaceholderVariant('Take for 3 Days')] },
+  { id: 'duration_4_days', label: 'Take for 4 Days', variants: [makePlaceholderVariant('Take for 4 Days')] },
+  { id: 'duration_5_days', label: 'Take for 5 Days', variants: [makePlaceholderVariant('Take for 5 Days')] },
+  { id: 'duration_6_days', label: 'Take for 6 Days', variants: [makePlaceholderVariant('Take for 6 Days')] },
+  { id: 'duration_7_days', label: 'Take for 7 Days', variants: [makePlaceholderVariant('Take for 7 Days')] },
+  { id: 'duration_8_days', label: 'Take for 8 Days', variants: [makePlaceholderVariant('Take for 8 Days')] },
+  { id: 'duration_9_days', label: 'Take for 9 Days', variants: [makePlaceholderVariant('Take for 9 Days')] },
+  { id: 'duration_10_days', label: 'Take for 10 Days', variants: [makePlaceholderVariant('Take for 10 Days')] },
+  { id: 'duration_1_week', label: 'Take for 1 Week', variants: [makePlaceholderVariant('Take for 1 Week')] },
+  { id: 'duration_2_weeks', label: 'Take for 2 Weeks', variants: [makePlaceholderVariant('Take for 2 Weeks')] },
+  { id: 'duration_3_weeks', label: 'Take for 3 Weeks', variants: [makePlaceholderVariant('Take for 3 Weeks')] },
+  { id: 'duration_4_weeks', label: 'Take for 4 Weeks', variants: [makePlaceholderVariant('Take for 4 Weeks')] },
+  { id: 'duration_5_weeks', label: 'Take for 5 Weeks', variants: [makePlaceholderVariant('Take for 5 Weeks')] },
+  { id: 'duration_6_weeks', label: 'Take for 6 Weeks', variants: [makePlaceholderVariant('Take for 6 Weeks')] },
+  { id: 'duration_7_weeks', label: 'Take for 7 Weeks', variants: [makePlaceholderVariant('Take for 7 Weeks')] },
+  { id: 'duration_8_weeks', label: 'Take for 8 Weeks', variants: [makePlaceholderVariant('Take for 8 Weeks')] },
+  { id: 'duration_9_weeks', label: 'Take for 9 Weeks', variants: [makePlaceholderVariant('Take for 9 Weeks')] },
+  { id: 'duration_10_weeks', label: 'Take for 10 Weeks', variants: [makePlaceholderVariant('Take for 10 Weeks')] },
+  { id: 'duration_1_month', label: 'Take for 1 Month', variants: [makePlaceholderVariant('Take for 1 Month')] },
+  { id: 'duration_2_months', label: 'Take for 2 Months', variants: [makePlaceholderVariant('Take for 2 Months')] },
+  { id: 'duration_3_months', label: 'Take for 3 Months', variants: [makePlaceholderVariant('Take for 3 Months')] },
+  { id: 'duration_4_months', label: 'Take for 4 Months', variants: [makePlaceholderVariant('Take for 4 Months')] },
+  { id: 'duration_5_months', label: 'Take for 5 Months', variants: [makePlaceholderVariant('Take for 5 Months')] },
+  { id: 'duration_6_months', label: 'Take for 6 Months', variants: [makePlaceholderVariant('Take for 6 Months')] },
+  { id: 'duration_7_months', label: 'Take for 7 Months', variants: [makePlaceholderVariant('Take for 7 Months')] },
+  { id: 'duration_8_months', label: 'Take for 8 Months', variants: [makePlaceholderVariant('Take for 8 Months')] },
+  { id: 'duration_9_months', label: 'Take for 9 Months', variants: [makePlaceholderVariant('Take for 9 Months')] },
+  { id: 'duration_10_months', label: 'Take for 10 Months', variants: [makePlaceholderVariant('Take for 10 Months')] },
+  { id: 'duration_11_months', label: 'Take for 11 Months', variants: [makePlaceholderVariant('Take for 11 Months')] },
+  { id: 'duration_12_months', label: 'Take for 12 Months', variants: [makePlaceholderVariant('Take for 12 Months')] },
+  { id: 'duration_complete_course', label: 'Complete Course', variants: [makePlaceholderVariant('Complete Course')] },
+  { id: 'duration_stop_on_doctors_advice', label: "Stop on Doctor's Advice", variants: [makePlaceholderVariant("Stop on Doctor's Advice")] },
+  { id: 'duration_take_until_symptoms_resolve', label: 'Take Until Symptoms Resolve', variants: [makePlaceholderVariant('Until Symptoms Resolve')] },
+  { id: 'duration_repeat_cycle', label: 'Repeat Cycle', variants: [makePlaceholderVariant('Repeat Cycle')] },
+];
+
+// ─── DOSAGE ──────────────────────────────────────────────────────────────────
+
+export const DOSAGE_OPTIONS: PictogramOption[] = [
+  { id: 'dosage_half_tablet', label: 'Half Tablet', variants: [makePlaceholderVariant('Half Tablet')] },
+  { id: 'dosage_1_tablet', label: '1 Tablet', variants: [makePlaceholderVariant('1 Tablet')] },
+  { id: 'dosage_1_and_half_tablets', label: '1½ Tablets', variants: [makePlaceholderVariant('1.5 Tablets')] },
+  { id: 'dosage_2_tablets', label: '2 Tablets', variants: [makePlaceholderVariant('2 Tablets')] },
+  { id: 'dosage_2_and_half_tablets', label: '2½ Tablets', variants: [makePlaceholderVariant('2.5 Tablets')] },
+  { id: 'dosage_3_tablets', label: '3 Tablets', variants: [makePlaceholderVariant('3 Tablets')] },
+  { id: 'dosage_3_and_half_tablets', label: '3½ Tablets', variants: [makePlaceholderVariant('3.5 Tablets')] },
+  { id: 'dosage_4_tablets', label: '4 Tablets', variants: [makePlaceholderVariant('4 Tablets')] },
+  { id: 'dosage_4_and_half_tablets', label: '4½ Tablets', variants: [makePlaceholderVariant('4.5 Tablets')] },
+  { id: 'dosage_1_teaspoon', label: '1 Teaspoon', variants: [makePlaceholderVariant('1 Teaspoon')] },
+  { id: 'dosage_2_teaspoons', label: '2 Teaspoons', variants: [makePlaceholderVariant('2 Teaspoons')] },
+  { id: 'dosage_3_teaspoons', label: '3 Teaspoons', variants: [makePlaceholderVariant('3 Teaspoons')] },
+  { id: 'dosage_1_tablespoon', label: '1 Tablespoon', variants: [makePlaceholderVariant('1 Tablespoon')] },
+  { id: 'dosage_2_tablespoons', label: '2 Tablespoons', variants: [makePlaceholderVariant('2 Tablespoons')] },
+  { id: 'dosage_3_tablespoons', label: '3 Tablespoons', variants: [makePlaceholderVariant('3 Tablespoons')] },
+  { id: 'dosage_1_ear_drop', label: '1 Ear Drop', variants: [makePlaceholderVariant('1 Ear Drop')] },
+  { id: 'dosage_2_ear_drops', label: '2 Ear Drops', variants: [makePlaceholderVariant('2 Ear Drops')] },
+  { id: 'dosage_3_ear_drops', label: '3 Ear Drops', variants: [makePlaceholderVariant('3 Ear Drops')] },
+  { id: 'dosage_4_ear_drops', label: '4 Ear Drops', variants: [makePlaceholderVariant('4 Ear Drops')] },
+  { id: 'dosage_1_eye_drop', label: '1 Eye Drop', variants: [makePlaceholderVariant('1 Eye Drop')] },
+  { id: 'dosage_2_eye_drops', label: '2 Eye Drops', variants: [makePlaceholderVariant('2 Eye Drops')] },
+  { id: 'dosage_3_eye_drops', label: '3 Eye Drops', variants: [makePlaceholderVariant('3 Eye Drops')] },
+  { id: 'dosage_4_eye_drops', label: '4 Eye Drops', variants: [makePlaceholderVariant('4 Eye Drops')] },
+  { id: 'dosage_injection_5ml', label: '5ml Injection', variants: [makePlaceholderVariant('5ml Injection')] },
+  { id: 'dosage_injection_10ml', label: '10ml Injection', variants: [makePlaceholderVariant('10ml Injection')] },
+  { id: 'dosage_injection_15ml', label: '15ml Injection', variants: [makePlaceholderVariant('15ml Injection')] },
+  { id: 'dosage_injection_20ml', label: '20ml Injection', variants: [makePlaceholderVariant('20ml Injection')] },
+];
+
+// ─── PRECAUTIONS ─────────────────────────────────────────────────────────────
+
+export const PRECAUTIONS_OPTIONS: PictogramOption[] = [
+  { id: 'precautions_avoid_alcohol', label: 'Avoid Alcohol', variants: [makePlaceholderVariant('Avoid Alcohol')] },
+  { id: 'precautions_avoid_dairy', label: 'Avoid Dairy', variants: [makePlaceholderVariant('Avoid Dairy')] },
+  { id: 'precautions_avoid_grapefruit', label: 'Avoid Grapefruit', variants: [makePlaceholderVariant('Avoid Grapefruit')] },
+  { id: 'precautions_keep_refrigerated', label: 'Keep Refrigerated', variants: [makePlaceholderVariant('Keep Refrigerated')] },
+  { id: 'precautions_keep_refrigerated_do_not_freeze', label: 'Keep Refrigerated, Do Not Freeze', variants: [makePlaceholderVariant('Do Not Freeze')] },
+  { id: 'precautions_keep_away_from_light', label: 'Keep Away From Light', variants: [makePlaceholderVariant('Keep Away From Light')] },
+  { id: 'precautions_keep_away_from_children', label: 'Keep Away From Children', variants: [makePlaceholderVariant('Keep Away From Children')] },
+  { id: 'precautions_keep_away_from_pets', label: 'Keep Away From Pets', variants: [makePlaceholderVariant('Keep Away From Pets')] },
+  { id: 'precautions_dispose_properly', label: 'Dispose Properly', variants: [makePlaceholderVariant('Dispose Properly')] },
+  { id: 'precautions_do_not_share', label: 'Do Not Share', variants: [makePlaceholderVariant('Do Not Share')] },
+  { id: 'precautions_do_not_take_if_pregnant', label: 'Do Not Take if Pregnant', variants: [makePlaceholderVariant('Do Not Take if Pregnant')] },
+  { id: 'precautions_do_not_take_if_breastfeeding', label: 'Do Not Take if Breastfeeding', variants: [makePlaceholderVariant('Do Not if Breastfeeding')] },
+  { id: 'precautions_consult_doctor_before_taking', label: 'Consult Doctor Before Taking', variants: [makePlaceholderVariant('Consult Doctor')] },
+  { id: 'precautions_consult_doctor_if_symptoms_worsen', label: 'Consult Doctor if Symptoms Worsen', variants: [makePlaceholderVariant('Consult if Worsen')] },
+  { id: 'precautions_check_expiry_date', label: 'Check Expiry Date', variants: [makePlaceholderVariant('Check Expiry')] },
+  { id: 'precautions_discard_8_weeks_after_opening', label: 'Discard 8 Weeks After Opening', variants: [makePlaceholderVariant('Discard after 8 Weeks')] },
+  { id: 'precautions_store_in_cool_dry_place', label: 'Store in Cool Dry Place', variants: [makePlaceholderVariant('Store Cool & Dry')] },
 ];

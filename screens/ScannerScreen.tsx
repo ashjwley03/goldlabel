@@ -9,8 +9,9 @@ import {
   Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
-import Svg, { Path, Line } from 'react-native-svg';
+import Svg, { Path } from 'react-native-svg';
 
 function XIcon() {
   return (
@@ -30,10 +31,20 @@ function ZapIcon({ active }: { active: boolean }) {
 
 export default function ScannerScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
+  const cameraRef = useRef<CameraView>(null);
+  const [permission, requestPermission] = useCameraPermissions();
+  const [cameraReady, setCameraReady] = useState(false);
   const [flashEnabled, setFlashEnabled] = useState(false);
   const [scanning, setScanning] = useState(false);
   const scanLineAnim = useRef(new Animated.Value(-80)).current;
   const scanLineOpacity = useRef(new Animated.Value(0)).current;
+
+  // Ask for camera permission as soon as the screen mounts.
+  useEffect(() => {
+    if (permission && !permission.granted && permission.canAskAgain) {
+      requestPermission();
+    }
+  }, [permission]);
 
   useEffect(() => {
     if (scanning) {
@@ -52,13 +63,11 @@ export default function ScannerScreen({ navigation }: any) {
   }, [scanning]);
 
   const handleCapture = async () => {
-    setScanning(true);
-    const { status, canAskAgain } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      setScanning(false);
-      if (canAskAgain) {
-        Alert.alert('Permission required', 'Camera access is needed to scan labels.');
-      } else {
+    if (!cameraRef.current || !cameraReady || scanning) return;
+
+    if (!permission?.granted) {
+      const res = await requestPermission();
+      if (!res.granted) {
         Alert.alert(
           'Camera permission denied',
           'Please enable camera access for GoldLabel in your phone settings.',
@@ -67,20 +76,27 @@ export default function ScannerScreen({ navigation }: any) {
             { text: 'Open Settings', onPress: () => Linking.openSettings() },
           ]
         );
+        return;
       }
-      return;
     }
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.8,
-      base64: true,
-    });
-    setScanning(false);
-    if (!result.canceled && result.assets[0]) {
-      navigation.navigate('Processing', {
-        imageUri: result.assets[0].uri,
-        imageBase64: result.assets[0].base64,
+
+    setScanning(true);
+    try {
+      const photo = await cameraRef.current.takePictureAsync({
+        quality: 0.8,
+        base64: true,
+        skipProcessing: false,
       });
+      setScanning(false);
+      if (photo?.uri) {
+        navigation.navigate('Processing', {
+          imageUri: photo.uri,
+          imageBase64: photo.base64,
+        });
+      }
+    } catch (e) {
+      setScanning(false);
+      Alert.alert('Capture failed', 'Could not take the photo. Please try again.');
     }
   };
 
@@ -103,10 +119,23 @@ export default function ScannerScreen({ navigation }: any) {
     }
   };
 
+  // Permission not granted (and can't ask again) — show a prompt to open settings.
+  const showPermissionPrompt = permission && !permission.granted && !permission.canAskAgain;
+
   return (
     <View style={styles.container}>
-      {/* Simulated camera background */}
-      <View style={styles.cameraBg} />
+      {/* Live camera background */}
+      {permission?.granted ? (
+        <CameraView
+          ref={cameraRef}
+          style={StyleSheet.absoluteFill}
+          facing="back"
+          enableTorch={flashEnabled}
+          onCameraReady={() => setCameraReady(true)}
+        />
+      ) : (
+        <View style={styles.cameraBg} />
+      )}
 
       {/* Top controls */}
       <View style={[styles.topControls, { paddingTop: insets.top + 16 }]}>
@@ -150,15 +179,25 @@ export default function ScannerScreen({ navigation }: any) {
           )}
         </View>
 
-        <Text style={styles.instruction}>Align medicine label within frame</Text>
+        <Text style={styles.instruction}>
+          {showPermissionPrompt
+            ? 'Camera access is off. Enable it in settings to scan.'
+            : 'Align medicine label within frame'}
+        </Text>
+
+        {showPermissionPrompt && (
+          <TouchableOpacity onPress={() => Linking.openSettings()} style={styles.settingsBtn} activeOpacity={0.8}>
+            <Text style={styles.settingsBtnText}>Open Settings</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Shutter button */}
       <View style={[styles.shutterContainer, { paddingBottom: 40 + insets.bottom }]}>
         <TouchableOpacity
           onPress={handleCapture}
-          disabled={scanning}
-          style={[styles.shutterOuter, scanning && styles.shutterDisabled]}
+          disabled={scanning || !permission?.granted || !cameraReady}
+          style={[styles.shutterOuter, (scanning || !permission?.granted || !cameraReady) && styles.shutterDisabled]}
           activeOpacity={0.85}
         >
           <View style={[styles.shutterInner, { backgroundColor: scanning ? '#D37B5C' : '#1B3022' }]} />
@@ -244,6 +283,19 @@ const styles = StyleSheet.create({
     fontSize: 18,
     marginTop: 24,
     textAlign: 'center',
+    paddingHorizontal: 24,
+  },
+  settingsBtn: {
+    marginTop: 16,
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    backgroundColor: '#D37B5C',
+    borderRadius: 20,
+  },
+  settingsBtnText: {
+    color: 'white',
+    fontSize: 15,
+    fontWeight: '600',
   },
   shutterContainer: {
     position: 'absolute',

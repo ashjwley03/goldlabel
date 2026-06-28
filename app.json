@@ -37,6 +37,12 @@
           "photosPermission": "Allow GoldLabel to access your photos to scan medication labels.",
           "cameraPermission": "Allow GoldLabel to access your camera to scan medication labels."
         }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow GoldLabel to access your camera to scan medication labels."
+        }
       ]
     ],
     "extra": {
